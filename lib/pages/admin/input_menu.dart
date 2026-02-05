@@ -1,0 +1,270 @@
+import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:kasir/auth/database.dart';
+
+class InputMenuDialog extends StatefulWidget {
+  const InputMenuDialog({Key? key}) : super(key: key);
+
+  @override
+  State<InputMenuDialog> createState() => _InputMenuDialogState();
+}
+
+class _InputMenuDialogState extends State<InputMenuDialog> {
+  String namaMenu = '';
+  String hargaMenu = '';
+  int? kategoriTerpilihId;
+  String? kategoriTerpilihNama;
+  XFile? gambarMenu;
+
+  List<Map<String, dynamic>> kategoriList = [];
+
+  final Color primaryBlue = const Color(0xFF007AFF);
+  final Color fieldBg = const Color(0xFFF8F9FA);
+  final Color borderColor = const Color(0xFFEEEEEE);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadKategori();
+  }
+
+  Future<void> _loadKategori() async {
+    final list = await AppDatabase.getKategori();
+    setState(() {
+      kategoriList = list;
+      if (kategoriList.isNotEmpty && kategoriTerpilihId == null) {
+        kategoriTerpilihId = kategoriList[0]['id'] as int;
+        kategoriTerpilihNama = kategoriList[0]['nama'] as String;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Container(
+        width: 480,
+        padding: const EdgeInsets.all(32),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Tambah Menu Baru',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 24),
+              _buildLabel('Foto Menu'),
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 160,
+                  decoration: BoxDecoration(
+                    color: fieldBg,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: gambarMenu == null
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.cloud_upload_outlined,
+                                color: primaryBlue, size: 36),
+                            const SizedBox(height: 8),
+                            Text('Klik untuk unggah foto menu',
+                                style: TextStyle(
+                                    fontSize: 13, color: Colors.grey[600])),
+                          ],
+                        )
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: Image.file(File(gambarMenu!.path),
+                                    fit: BoxFit.cover),
+                              ),
+                              Positioned(
+                                right: 12,
+                                top: 12,
+                                child: CircleAvatar(
+                                  backgroundColor: Colors.black54,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.edit,
+                                        color: Colors.white, size: 20),
+                                    onPressed: _pickImage,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              _buildLabel('Nama Menu'),
+              _buildTextField(
+                hint: 'Contoh: Nasi Goreng Spesial',
+                onChanged: (v) => setState(() => namaMenu = v),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel('Harga (Rp)'),
+                        _buildTextField(
+                          hint: '0',
+                          keyboardType: TextInputType.number,
+                          onChanged: (v) => setState(() => hargaMenu = v),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel('Kategori'),
+                        _buildDropdown(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 40),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text('Batal',
+                          style: TextStyle(
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (namaMenu.trim().isEmpty ||
+                            hargaMenu.trim().isEmpty ||
+                            kategoriTerpilihId == null) return;
+                        await AppDatabase.insertMenu(
+                          nama: namaMenu.trim(),
+                          harga: int.tryParse(hargaMenu.trim()) ?? 0,
+                          gambar: gambarMenu?.path,
+                          kategoriId: kategoriTerpilihId!,
+                        );
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryBlue,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Simpan Menu',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0, left: 4),
+      child: Text(text,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+    );
+  }
+
+  Widget _buildTextField(
+      {required String hint,
+      required Function(String) onChanged,
+      TextInputType? keyboardType}) {
+    return TextField(
+      onChanged: onChanged,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+        filled: true,
+        fillColor: fieldBg,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: borderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryBlue.withOpacity(0.5)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: fieldBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: kategoriTerpilihId,
+          isExpanded: true,
+          hint: Text('Pilih',
+              style: TextStyle(color: Colors.grey[400], fontSize: 14)),
+          items: kategoriList.map((k) {
+            return DropdownMenuItem<int>(
+              value: k['id'] as int,
+              child: Text(k['nama'] as String,
+                  style: const TextStyle(fontSize: 14)),
+            );
+          }).toList(),
+          onChanged: (v) {
+            final nama =
+                kategoriList.firstWhere((k) => k['id'] == v)['nama'] as String;
+            setState(() {
+              kategoriTerpilihId = v;
+              kategoriTerpilihNama = nama;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? img = await picker.pickImage(source: ImageSource.gallery);
+    if (img != null) setState(() => gambarMenu = img);
+  }
+}
