@@ -18,7 +18,6 @@ class _InputKategoriDialogState extends State<InputKategoriDialog> {
   @override
   void initState() {
     super.initState();
-    // Jika edit mode, set initial value
     namaKategori = widget.kategoriData?['nama'] ?? '';
   }
 
@@ -35,13 +34,11 @@ class _InputKategoriDialogState extends State<InputKategoriDialog> {
         ),
         padding: const EdgeInsets.all(32),
         child: SingleChildScrollView(
-          // <--- Solusi utama agar bisa di-scroll saat keyboard muncul
           child: Column(
             mainAxisSize:
-                MainAxisSize.min, // Agar dialog mengikuti ukuran konten
+                MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

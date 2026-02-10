@@ -93,7 +93,7 @@ class _KasirPageState extends State<KasirPage> {
   void _showEmptyWarningDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false, // User wajib menekan tombol
+      barrierDismissible: false, 
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(

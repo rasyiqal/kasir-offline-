@@ -113,7 +113,6 @@ class AppDatabase {
 
   static Future<void> deleteMenu(int id) async {
     final db = await database;
-    // Get menu data to get image path
     final result = await db.query('menu', where: 'id = ?', whereArgs: [id]);
     if (result.isNotEmpty) {
       final gambarPath = result[0]['gambar'] as String?;
@@ -121,7 +120,6 @@ class AppDatabase {
         await _deleteImageFile(gambarPath);
       }
     }
-    // Delete menu record
     await db.delete('menu', where: 'id = ?', whereArgs: [id]);
   }
 
@@ -132,7 +130,6 @@ class AppDatabase {
         await file.delete();
       }
     } catch (e) {
-      // File deletion failed, continue anyway
       print('Error deleting image: $e');
     }
   }
