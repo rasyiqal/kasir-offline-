@@ -17,15 +17,15 @@ class _KasirPageState extends State<KasirPage> {
   String _selectedCategoryName = '';
   List<Map<String, dynamic>> _kategoriList = [];
   List<Map<String, dynamic>> _menuList = [];
+  List<Map<String, dynamic>> _cartItems = [];
   bool _loadingKategori = true;
   bool _loadingMenu = true;
 
-  // Palette Warna yang Lebih Modern
   final Color primaryBlue =
-      const Color(0xFF0D47A1); // Deep Blue lebih profesional
+      const Color(0xFF0D47A1);
   final Color accentBlue = const Color(0xFFE3F2FD);
   final Color bgWhite = Colors.white;
-  final Color lightGrey = const Color(0xFFF8FAFC); // Grey kebiruan yang bersih
+  final Color lightGrey = const Color(0xFFF8FAFC);
 
   @override
   void initState() {
@@ -33,17 +33,20 @@ class _KasirPageState extends State<KasirPage> {
     _loadKategori();
   }
 
-  // ... (Fungsi _loadKategori dan _loadMenu tetap sama seperti sebelumnya) ...
   Future<void> _loadKategori() async {
     setState(() => _loadingKategori = true);
     final kategori = await AppDatabase.getKategori();
+    
     setState(() {
       _kategoriList = kategori;
       _loadingKategori = false;
+      
       if (_kategoriList.isNotEmpty) {
         _selectedCategoryId = _kategoriList[0]['id'];
         _selectedCategoryName = _kategoriList[0]['nama'];
         _loadMenu();
+      } else {
+        Future.delayed(Duration.zero, () => _showEmptyWarningDialog());
       }
     });
   }
@@ -63,6 +66,76 @@ class _KasirPageState extends State<KasirPage> {
       _menuList = menu;
       _loadingMenu = false;
     });
+  }
+
+  void _addToCart(Map<String, dynamic> menu) {
+    setState(() {
+      final existingItemIndex = _cartItems.indexWhere(
+          (item) => item['menu_id'] == menu['id']);
+      
+      if (existingItemIndex >= 0) {
+        // Item sudah ada, tambah quantity
+        _cartItems[existingItemIndex]['qty'] += 1;
+      } else {
+        // Item baru, tambahkan ke cart
+        _cartItems.add({
+          'menu_id': menu['id'],
+          'nama': menu['nama'],
+          'harga': menu['harga'],
+          'gambar': menu['gambar'],
+          'kategori_id': menu['kategori_id'],
+          'qty': 1,
+        });
+      }
+    });
+  }
+
+  void _showEmptyWarningDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // User wajib menekan tombol
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange),
+            SizedBox(width: 10),
+            Text('Data Kosong'),
+          ],
+        ),
+        content: const Text(
+          'Menu dan kategori belum diatur. Silahkan login ke akun pengelola untuk menambahkan data.',
+          style: TextStyle(fontSize: 15),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pushNamed(context, '/login'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryBlue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.login, size: 18),
+                SizedBox(width: 8),
+                Text('Kelola Menu'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  int _getTotalPrice() {
+    int total = 0;
+    for (var item in _cartItems) {
+      total += (item['harga'] as int) * (item['qty'] as int);
+    }
+    return total;
   }
 
   @override
@@ -208,6 +281,7 @@ class _KasirPageState extends State<KasirPage> {
                                               index: index,
                                               primaryBlue: primaryBlue,
                                               menu: _menuList[index],
+                                              onAddToCart: () => _addToCart(_menuList[index]),
                                             ),
                                           );
                                         },
@@ -223,6 +297,26 @@ class _KasirPageState extends State<KasirPage> {
                     onHide: () => setState(() => _cartVisible = false),
                     primaryBlue: primaryBlue,
                     bgWhite: bgWhite,
+                    cartItems: _cartItems,
+                    totalPrice: _getTotalPrice(),
+                    onRemoveItem: (index) {
+                      setState(() {
+                        if (index >= 0 && index < _cartItems.length) {
+                          _cartItems.removeAt(index);
+                        }
+                      });
+                    },
+                    onUpdateQuantity: (index, newQty) {
+                      setState(() {
+                        if (index >= 0 && index < _cartItems.length) {
+                          if (newQty <= 0) {
+                            _cartItems.removeAt(index);
+                          } else {
+                            _cartItems[index]['qty'] = newQty;
+                          }
+                        }
+                      });
+                    },
                   ),
                 ],
               ),
@@ -288,20 +382,20 @@ class _KasirPageState extends State<KasirPage> {
                   ),
           ),
           const Divider(height: 1),
-          // Tombol Kelola Menu
-          const Divider(height: 1),
+
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             child: InkWell(
-              onTap: () {},
+              onTap: () {
+                Navigator.pushNamed(context, '/login');
+              },
               borderRadius: BorderRadius.circular(12),
               child: AnimatedContainer(
-                // Gunakan AnimatedContainer agar padding ikut transisi
                 duration: const Duration(milliseconds: 300),
                 padding: EdgeInsets.symmetric(
                   vertical: 12,
                   horizontal:
-                      _sidebarVisible ? 16 : 0, // Kurangi padding saat tertutup
+                      _sidebarVisible ? 16 : 0,
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),

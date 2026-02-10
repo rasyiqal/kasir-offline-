@@ -5,12 +5,14 @@ class MenuCard extends StatelessWidget {
   final int index;
   final Color primaryBlue;
   final Map<String, dynamic> menu;
+  final VoidCallback? onAddToCart;
 
   const MenuCard({
     Key? key,
     required this.index,
     required this.primaryBlue,
     required this.menu,
+    this.onAddToCart,
   }) : super(key: key);
 
   @override
@@ -36,7 +38,7 @@ class MenuCard extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () {/* Logika tambah ke keranjang */},
+            onTap: onAddToCart,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -51,8 +53,6 @@ class MenuCard extends StatelessWidget {
                   ),
                 ),
 
-                // --- BAGIAN INFO ---
-                // Remove Expanded here so the Column can just take what it needs
                 Padding(
                   padding: const EdgeInsets.all(10),
                   child: Column(

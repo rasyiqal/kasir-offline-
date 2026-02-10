@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kasir/auth/database.dart';
+import 'package:kasir/pages/admin/input_menu.dart';
 import 'dart:io';
 
 class MenuTable extends StatefulWidget {
@@ -10,10 +11,10 @@ class MenuTable extends StatefulWidget {
       : super(key: key);
 
   @override
-  State<MenuTable> createState() => _MenuTableState();
+  State<MenuTable> createState() => MenuTableState();
 }
 
-class _MenuTableState extends State<MenuTable> {
+class MenuTableState extends State<MenuTable> {
   List<Map<String, dynamic>> menuList = [];
   bool isLoading = true;
 
@@ -21,6 +22,10 @@ class _MenuTableState extends State<MenuTable> {
   void initState() {
     super.initState();
     _loadMenu();
+  }
+
+  Future<void> refreshMenu() async {
+    await _loadMenu();
   }
 
   Future<void> _loadMenu() async {
@@ -111,6 +116,19 @@ class _MenuTableState extends State<MenuTable> {
                                   const TextStyle(fontWeight: FontWeight.w900)),
                           const SizedBox(width: 24),
                           IconButton(
+                            icon: const Icon(Icons.edit),
+                            color: widget.primaryBlue,
+                            onPressed: () async {
+                              final result = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => InputMenuDialog(menuData: menu),
+                              );
+                              if (result == true) {
+                                _loadMenu();
+                              }
+                            },
+                          ),
+                          IconButton(
                             icon: const Icon(Icons.delete),
                             color: Colors.redAccent,
                             onPressed: () async {
@@ -138,11 +156,10 @@ class _MenuTableState extends State<MenuTable> {
                                 ),
                               );
                               if (confirm == true) {
-                                await AppDatabase.database.then((db) => db
-                                    .delete('menu',
-                                        where: 'id = ?',
-                                        whereArgs: [menu['id']]));
-                                _loadMenu();
+                                await AppDatabase.deleteMenu(menu['id'] as int);
+                                if (mounted) {
+                                  _loadMenu();
+                                }
                               }
                             },
                           ),

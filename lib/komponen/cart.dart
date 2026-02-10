@@ -6,6 +6,10 @@ class Cart extends StatelessWidget {
   final VoidCallback onHide;
   final Color primaryBlue;
   final Color bgWhite;
+  final List<Map<String, dynamic>> cartItems;
+  final int totalPrice;
+  final Function(int)? onRemoveItem;
+  final Function(int, int)? onUpdateQuantity;
 
   const Cart({
     Key? key,
@@ -14,157 +18,120 @@ class Cart extends StatelessWidget {
     required this.onHide,
     required this.primaryBlue,
     required this.bgWhite,
+    this.cartItems = const [],
+    this.totalPrice = 0,
+    this.onRemoveItem,
+    this.onUpdateQuantity,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Keadaan ketika keranjang disembunyikan (Sidebar Kecil)
+    // Mini Sidebar (Tertutup)
     if (!cartVisible) {
       return GestureDetector(
         onTap: onShow,
         child: Container(
-          width: 60, // Sedikit lebih lebar agar proporsional
+          width: 50, // Lebih ramping
           decoration: BoxDecoration(
             color: bgWhite,
-            border: Border(left: BorderSide(color: Colors.grey.shade100)),
+            border: Border(left: BorderSide(color: Colors.grey.shade200)),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: primaryBlue.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.shopping_cart_outlined,
-                    color: primaryBlue, size: 24),
+              Badge(
+                label: Text(cartItems.length.toString()),
+                isLabelVisible: cartItems.isNotEmpty,
+                child: Icon(Icons.shopping_cart_outlined, color: primaryBlue),
               ),
-              const SizedBox(height: 10),
-              // Indikator jumlah item bisa diletakkan di sini nanti
             ],
           ),
         ),
       );
     }
 
-    // Keadaan ketika keranjang terbuka
+    // Keranjang Terbuka (Simple & Compact)
     return Container(
-      width: 350, // Disamakan dengan lebar search bar agar seimbang
+      width: 300, // Lebar dikurangi agar tidak memakan tempat
       decoration: BoxDecoration(
         color: bgWhite,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(-4, 0),
+            blurRadius: 10,
+            offset: const Offset(-2, 0),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Header Keranjang
+          // Header yang lebih kecil
           Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.shopping_bag_outlined,
-                        color: primaryBlue, size: 22),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'KERANJANG',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'KERANJANG (${cartItems.length})',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 IconButton(
-                  icon: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      shape: BoxShape.circle,
-                    ),
-                    child:
-                        const Icon(Icons.close, size: 18, color: Colors.grey),
-                  ),
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.close, size: 20),
                   onPressed: onHide,
                 ),
               ],
             ),
           ),
+          const Divider(height: 1),
 
-          // List Item (Empty State)
+          // List Item yang lebih rapat
           Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add_shopping_cart_rounded,
-                      size: 60, color: Colors.grey.shade200),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Belum ada item terpilih',
-                    style: TextStyle(
-                      color: Colors.grey.shade400,
-                      fontWeight: FontWeight.w500,
-                    ),
+            child: cartItems.isEmpty
+                ? _buildEmptyState()
+                : ListView.separated(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: cartItems.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) => _buildCartItem(index),
                   ),
-                ],
-              ),
-            ),
           ),
 
-          // Footer & Summary Section
+          // Footer Ringkas
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: bgWhite,
-              border: Border(top: BorderSide(color: Colors.grey.shade100)),
+              color: Colors.grey.shade50,
+              border: Border(top: BorderSide(color: Colors.grey.shade200)),
             ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    const Text('Total', style: TextStyle(fontWeight: FontWeight.w500)),
                     Text(
-                      'Total Bayar',
-                      style:
-                          TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                    ),
-                    const Text(
-                      'Rp 0',
+                      'Rp${_formatRupiah(totalPrice)}',
                       style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: primaryBlue,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: cartItems.isEmpty ? null : () {},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryBlue,
                     foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 55),
+                    minimumSize: const Size(double.infinity, 45), // Tinggi dikurangi
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15)),
                   ),
-                  child: const Text(
-                    'BAYAR SEKARANG',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                        fontSize: 14),
-                  ),
+                  child: const Text('CHECKOUT', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -172,5 +139,83 @@ class Cart extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildCartItem(int index) {
+    final item = cartItems[index];
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Info Item
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item['nama'] ?? '-',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                'Rp${_formatRupiah(item['harga'])}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        ),
+        // Kontrol Jumlah (Lebih kecil)
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              _qtyBtn(Icons.remove, () => onUpdateQuantity?.call(index, (item['qty'] as int) - 1)),
+              SizedBox(
+                width: 25,
+                child: Text('${item['qty']}', 
+                  textAlign: TextAlign.center, 
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)
+                ),
+              ),
+              _qtyBtn(Icons.add, () => onUpdateQuantity?.call(index, (item['qty'] as int) + 1)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+          onPressed: () => onRemoveItem?.call(index),
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
+    );
+  }
+
+  Widget _qtyBtn(IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(4.0),
+        child: Icon(icon, size: 14),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Text(
+        'Kosong',
+        style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+      ),
+    );
+  }
+
+  String _formatRupiah(dynamic value) {
+    if (value == null) return '0';
+    final n = value is int ? value : int.tryParse(value.toString()) ?? 0;
+    return n.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
   }
 }

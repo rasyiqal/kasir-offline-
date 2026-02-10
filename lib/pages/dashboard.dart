@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kasir/auth/database.dart';
 import 'package:kasir/pages/admin/kategori.dart';
 import 'package:kasir/pages/admin/menu.dart';
 import 'package:kasir/pages/admin/input_kategori.dart';
@@ -13,8 +14,12 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   int _selectedIndex = 0;
-  final Color primaryBlue = const Color(0xFF007AFF); // Blue ala iOS/Modern
+  final Color primaryBlue = const Color(0xFF007AFF); 
   final Color bgSurface = const Color(0xFFF8F9FA);
+  
+  // GlobalKey untuk mengakses CategoryList dan MenuTable dan trigger refresh
+  final GlobalKey<CategoryListState> _categoryListKey = GlobalKey<CategoryListState>();
+  final GlobalKey<MenuTableState> _menuTableKey = GlobalKey<MenuTableState>();
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +83,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                       ElevatedButton.icon(
                         onPressed: () async {
-                          await showDialog(
+                          final result = await showDialog(
                             context: context,
                             builder: (ctx) {
                               if (_selectedIndex == 0) {
@@ -88,8 +93,15 @@ class _DashboardPageState extends State<DashboardPage> {
                               }
                             },
                           );
-                          setState(
-                              () {}); // Refresh tampilan setelah dialog ditutup
+                          
+                          // Refresh list jika input berhasil (return true)
+                          if (result == true) {
+                            if (_selectedIndex == 0) {
+                              _menuTableKey.currentState?.refreshMenu();
+                            } else if (_selectedIndex == 1) {
+                              _categoryListKey.currentState?.refreshCategories();
+                            }
+                          }
                         },
                         icon: const Icon(Icons.add,
                             color: Colors.white, size: 20),
@@ -108,12 +120,16 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   const SizedBox(height: 40),
 
-                  // Data Area
                   Expanded(
                     child: _selectedIndex == 0
                         ? MenuTable(
+                            key: _menuTableKey,
                             bgSurface: bgSurface, primaryBlue: primaryBlue)
-                        : const CategoryGrid(),
+                        : CategoryList(
+                            key: _categoryListKey,
+                            onEdit: _editKategori,
+                            onDelete: _deleteKategori,
+                          ),
                   ),
                 ],
               ),
@@ -124,11 +140,41 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  void _editKategori(Map<String, dynamic> kategoriData) async {
+    final result = await showDialog(
+      context: context,
+      builder: (ctx) => InputKategoriDialog(kategoriData: kategoriData),
+    );
+    if (result == true) {
+      _categoryListKey.currentState?.refreshCategories();
+    }
+  }
+
+  Future<void> _deleteKategori(int kategoriId) async {
+    try {
+      await AppDatabase.deleteKategori(kategoriId);
+      _categoryListKey.currentState?.refreshCategories();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error menghapus kategori: $e')),
+        );
+      }
+    }
+  }
+
   Widget _navItem(int index, IconData icon, String title,
       {bool isLogout = false}) {
     bool isActive = _selectedIndex == index;
     return InkWell(
-      onTap: () => setState(() => _selectedIndex = index),
+      onTap: () {
+        if (isLogout) {
+          // Handle logout
+          Navigator.pushNamedAndRemoveUntil(context, '/kasir', (route) => false);
+        } else {
+          setState(() => _selectedIndex = index);
+        }
+      },
       borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),

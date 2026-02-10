@@ -4,7 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:kasir/auth/database.dart';
 
 class InputMenuDialog extends StatefulWidget {
-  const InputMenuDialog({Key? key}) : super(key: key);
+  final Map<String, dynamic>? menuData;
+
+  const InputMenuDialog({Key? key, this.menuData}) : super(key: key);
 
   @override
   State<InputMenuDialog> createState() => _InputMenuDialogState();
@@ -16,6 +18,7 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
   int? kategoriTerpilihId;
   String? kategoriTerpilihNama;
   XFile? gambarMenu;
+  String? gambarLama;
 
   List<Map<String, dynamic>> kategoriList = [];
 
@@ -26,6 +29,17 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
   @override
   void initState() {
     super.initState();
+    if (widget.menuData != null) {
+      namaMenu = widget.menuData!['nama'] as String;
+      hargaMenu = widget.menuData!['harga'].toString();
+      kategoriTerpilihId = widget.menuData!['kategori_id'] as int;
+      kategoriTerpilihNama = widget.menuData!['kategori_nama'] as String;
+      final gambarPath = widget.menuData!['gambar'] as String?;
+      if (gambarPath != null && gambarPath.isNotEmpty) {
+        gambarMenu = XFile(gambarPath);
+        gambarLama = gambarPath;
+      }
+    }
     _loadKategori();
   }
 
@@ -54,8 +68,8 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Tambah Menu Baru',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              Text(widget.menuData == null ? 'Tambah Menu Baru' : 'Edit Menu',
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 24),
               _buildLabel('Foto Menu'),
               GestureDetector(
@@ -165,13 +179,36 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                         if (namaMenu.trim().isEmpty ||
                             hargaMenu.trim().isEmpty ||
                             kategoriTerpilihId == null) return;
-                        await AppDatabase.insertMenu(
-                          nama: namaMenu.trim(),
-                          harga: int.tryParse(hargaMenu.trim()) ?? 0,
-                          gambar: gambarMenu?.path,
-                          kategoriId: kategoriTerpilihId!,
-                        );
-                        Navigator.pop(context);
+                        
+                        try {
+                          if (widget.menuData == null) {
+                            // Insert menu baru
+                            await AppDatabase.insertMenu(
+                              nama: namaMenu.trim(),
+                              harga: int.tryParse(hargaMenu.trim()) ?? 0,
+                              gambar: gambarMenu?.path,
+                              kategoriId: kategoriTerpilihId!,
+                            );
+                          } else {
+                            if (gambarMenu != null && 
+                                gambarLama != null && 
+                                gambarMenu!.path != gambarLama!) {
+                              await _deleteImageFile(gambarLama!);
+                            }
+                            
+                            await AppDatabase.updateMenu(
+                              id: widget.menuData!['id'] as int,
+                              nama: namaMenu.trim(),
+                              harga: int.tryParse(hargaMenu.trim()) ?? 0,
+                              gambar: gambarMenu?.path,
+                              kategoriId: kategoriTerpilihId!,
+                            );
+                          }
+                          Navigator.pop(context, true);
+                        } catch (e) {
+                          print('Error saving menu: $e');
+                          Navigator.pop(context, false);
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryBlue,
@@ -181,8 +218,8 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('Simpan Menu',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: Text(widget.menuData == null ? 'Simpan Menu' : 'Simpan Perubahan',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -266,5 +303,16 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
     final ImagePicker picker = ImagePicker();
     final XFile? img = await picker.pickImage(source: ImageSource.gallery);
     if (img != null) setState(() => gambarMenu = img);
+  }
+
+  Future<void> _deleteImageFile(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (e) {
+      print('Error deleting image: $e');
+    }
   }
 }

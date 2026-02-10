@@ -101,7 +101,7 @@ class _LoginPageState extends State<LoginPage> {
                     elevation: 2,
                   ),
                   onPressed: () {
-                    // Logika login di sini
+                    Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false);
                   },
                   child: const Text(
                     "LOGIN",
