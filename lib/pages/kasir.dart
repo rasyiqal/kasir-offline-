@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kasir/komponen/menu_card.dart';
 import 'package:kasir/komponen/cart.dart';
 import 'package:kasir/auth/database.dart';
+import 'package:kasir/komponen/nota.dart';
 
 class KasirPage extends StatefulWidget {
   const KasirPage({super.key});
@@ -21,8 +22,7 @@ class _KasirPageState extends State<KasirPage> {
   bool _loadingKategori = true;
   bool _loadingMenu = true;
 
-  final Color primaryBlue =
-      const Color(0xFF0D47A1);
+  final Color primaryBlue = const Color(0xFF0D47A1);
   final Color accentBlue = const Color(0xFFE3F2FD);
   final Color bgWhite = Colors.white;
   final Color lightGrey = const Color(0xFFF8FAFC);
@@ -36,11 +36,11 @@ class _KasirPageState extends State<KasirPage> {
   Future<void> _loadKategori() async {
     setState(() => _loadingKategori = true);
     final kategori = await AppDatabase.getKategori();
-    
+
     setState(() {
       _kategoriList = kategori;
       _loadingKategori = false;
-      
+
       if (_kategoriList.isNotEmpty) {
         _selectedCategoryId = _kategoriList[0]['id'];
         _selectedCategoryName = _kategoriList[0]['nama'];
@@ -55,13 +55,16 @@ class _KasirPageState extends State<KasirPage> {
     setState(() => _loadingMenu = true);
     if (_selectedCategoryId == null) return;
     final db = await AppDatabase.database;
-    final menu = await db.rawQuery('''
+    final menu = await db.rawQuery(
+      '''
       SELECT menu.*, kategori.nama AS kategori_nama
       FROM menu
       LEFT JOIN kategori ON menu.kategori_id = kategori.id
       WHERE menu.kategori_id = ?
       ORDER BY menu.nama
-    ''', [_selectedCategoryId]);
+    ''',
+      [_selectedCategoryId],
+    );
     setState(() {
       _menuList = menu;
       _loadingMenu = false;
@@ -71,8 +74,9 @@ class _KasirPageState extends State<KasirPage> {
   void _addToCart(Map<String, dynamic> menu) {
     setState(() {
       final existingItemIndex = _cartItems.indexWhere(
-          (item) => item['menu_id'] == menu['id']);
-      
+        (item) => item['menu_id'] == menu['id'],
+      );
+
       if (existingItemIndex >= 0) {
         // Item sudah ada, tambah quantity
         _cartItems[existingItemIndex]['qty'] += 1;
@@ -93,7 +97,7 @@ class _KasirPageState extends State<KasirPage> {
   void _showEmptyWarningDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false, 
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
@@ -113,7 +117,9 @@ class _KasirPageState extends State<KasirPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryBlue,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
             child: const Row(
@@ -170,8 +176,11 @@ class _KasirPageState extends State<KasirPage> {
                             color: accentBlue,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(Icons.storefront_rounded,
-                              color: primaryBlue, size: 28),
+                          child: Icon(
+                            Icons.storefront_rounded,
+                            color: primaryBlue,
+                            size: 28,
+                          ),
                         ),
                         const SizedBox(width: 15),
                         Text(
@@ -209,8 +218,9 @@ class _KasirPageState extends State<KasirPage> {
                       child: Text(
                         "Selasa, 3 Feb 2026",
                         style: TextStyle(
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500),
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ),
@@ -226,7 +236,8 @@ class _KasirPageState extends State<KasirPage> {
                       decoration: BoxDecoration(
                         color: lightGrey,
                         borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(30)),
+                          topLeft: Radius.circular(30),
+                        ),
                       ),
                       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
                       child: Column(
@@ -243,9 +254,13 @@ class _KasirPageState extends State<KasirPage> {
                                   letterSpacing: 1.0,
                                 ),
                               ),
-                              Text("${_menuList.length} Produk ditemukan",
-                                  style: TextStyle(
-                                      color: Colors.grey[500], fontSize: 13)),
+                              Text(
+                                "${_menuList.length} Produk ditemukan",
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 13,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 20),
@@ -253,39 +268,43 @@ class _KasirPageState extends State<KasirPage> {
                             child: _loadingMenu
                                 ? Center(
                                     child: CircularProgressIndicator(
-                                        color: primaryBlue))
+                                      color: primaryBlue,
+                                    ),
+                                  )
                                 : _menuList.isEmpty
-                                    ? _buildEmptyState()
-                                    : LayoutBuilder(
-                                        builder: (context, constraints) {
-                                          double targetCardWidth = 135;
-                                          int crossAxisCount =
-                                              (constraints.maxWidth /
-                                                      targetCardWidth)
-                                                  .floor();
-                                          if (crossAxisCount < 2)
-                                            crossAxisCount = 2;
-                                          return GridView.builder(
-                                            padding: const EdgeInsets.only(
-                                                bottom: 20),
-                                            gridDelegate:
-                                                SliverGridDelegateWithFixedCrossAxisCount(
+                                ? _buildEmptyState()
+                                : LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      double targetCardWidth = 135;
+                                      int crossAxisCount =
+                                          (constraints.maxWidth /
+                                                  targetCardWidth)
+                                              .floor();
+                                      if (crossAxisCount < 2)
+                                        crossAxisCount = 2;
+                                      return GridView.builder(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 20,
+                                        ),
+                                        gridDelegate:
+                                            SliverGridDelegateWithFixedCrossAxisCount(
                                               crossAxisCount: crossAxisCount,
                                               childAspectRatio: 0.75,
                                               crossAxisSpacing: 16,
                                               mainAxisSpacing: 16,
                                             ),
-                                            itemCount: _menuList.length,
-                                            itemBuilder: (context, index) =>
-                                                MenuCard(
+                                        itemCount: _menuList.length,
+                                        itemBuilder: (context, index) =>
+                                            MenuCard(
                                               index: index,
                                               primaryBlue: primaryBlue,
                                               menu: _menuList[index],
-                                              onAddToCart: () => _addToCart(_menuList[index]),
+                                              onAddToCart: () =>
+                                                  _addToCart(_menuList[index]),
                                             ),
-                                          );
-                                        },
-                                      ),
+                                      );
+                                    },
+                                  ),
                           ),
                         ],
                       ),
@@ -299,6 +318,21 @@ class _KasirPageState extends State<KasirPage> {
                     bgWhite: bgWhite,
                     cartItems: _cartItems,
                     totalPrice: _getTotalPrice(),
+                    onCheckout: () async {
+                      // fungsi cetak
+                      await NotaService.cetakNota(
+                        items: _cartItems,
+                        total: _getTotalPrice(),
+                      );
+                      setState(() {
+                        _cartItems.clear();
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Transaksi berhasil dan nota dicetak!'),
+                        ),
+                      );
+                    },
                     onRemoveItem: (index) {
                       setState(() {
                         if (index >= 0 && index < _cartItems.length) {
@@ -349,8 +383,10 @@ class _KasirPageState extends State<KasirPage> {
                   const Expanded(
                     child: Text(
                       'KATEGORI',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
                       overflow: TextOverflow.fade,
                       softWrap: false,
                     ),
@@ -359,10 +395,11 @@ class _KasirPageState extends State<KasirPage> {
                   constraints: const BoxConstraints(),
                   padding: EdgeInsets.zero,
                   icon: Icon(
-                      _sidebarVisible
-                          ? Icons.arrow_back_ios_new
-                          : Icons.menu_open,
-                      size: 20),
+                    _sidebarVisible
+                        ? Icons.arrow_back_ios_new
+                        : Icons.menu_open,
+                    size: 20,
+                  ),
                   onPressed: () =>
                       setState(() => _sidebarVisible = !_sidebarVisible),
                 ),
@@ -373,7 +410,10 @@ class _KasirPageState extends State<KasirPage> {
             child: _loadingKategori
                 ? Center(
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: primaryBlue))
+                      strokeWidth: 2,
+                      color: primaryBlue,
+                    ),
+                  )
                 : ListView.builder(
                     padding: EdgeInsets.zero,
                     itemCount: _kategoriList.length,
@@ -394,8 +434,7 @@ class _KasirPageState extends State<KasirPage> {
                 duration: const Duration(milliseconds: 300),
                 padding: EdgeInsets.symmetric(
                   vertical: 12,
-                  horizontal:
-                      _sidebarVisible ? 16 : 0,
+                  horizontal: _sidebarVisible ? 16 : 0,
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
@@ -416,8 +455,7 @@ class _KasirPageState extends State<KasirPage> {
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
-                          overflow: TextOverflow
-                              .ellipsis, 
+                          overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                         ),
                       ),
@@ -469,14 +507,15 @@ class _KasirPageState extends State<KasirPage> {
                     kategori['nama'],
                     style: TextStyle(
                       color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.w500,
                     ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
                 ),
-              ]
+              ],
             ],
           ),
         ),
@@ -491,8 +530,10 @@ class _KasirPageState extends State<KasirPage> {
         children: [
           Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
-          Text("Menu belum tersedia",
-              style: TextStyle(color: Colors.grey[500], fontSize: 16)),
+          Text(
+            "Menu belum tersedia",
+            style: TextStyle(color: Colors.grey[500], fontSize: 16),
+          ),
         ],
       ),
     );

@@ -10,6 +10,7 @@ class Cart extends StatelessWidget {
   final int totalPrice;
   final Function(int)? onRemoveItem;
   final Function(int, int)? onUpdateQuantity;
+  final VoidCallback? onCheckout;
 
   const Cart({
     Key? key,
@@ -22,6 +23,7 @@ class Cart extends StatelessWidget {
     this.totalPrice = 0,
     this.onRemoveItem,
     this.onUpdateQuantity,
+    this.onCheckout,
   }) : super(key: key);
 
   @override
@@ -31,7 +33,7 @@ class Cart extends StatelessWidget {
       return GestureDetector(
         onTap: onShow,
         child: Container(
-          width: 50, // Lebih ramping
+          width: 50, 
           decoration: BoxDecoration(
             color: bgWhite,
             border: Border(left: BorderSide(color: Colors.grey.shade200)),
@@ -120,7 +122,7 @@ class Cart extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(
-                  onPressed: cartItems.isEmpty ? null : () {},
+                  onPressed: cartItems.isEmpty ? null : onCheckout,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryBlue,
                     foregroundColor: Colors.white,
