@@ -17,7 +17,6 @@ class _DashboardPageState extends State<DashboardPage> {
   final Color primaryBlue = const Color(0xFF007AFF); 
   final Color bgSurface = const Color(0xFFF8F9FA);
   
-  // GlobalKey untuk mengakses CategoryList dan MenuTable dan trigger refresh
   final GlobalKey<CategoryListState> _categoryListKey = GlobalKey<CategoryListState>();
   final GlobalKey<MenuTableState> _menuTableKey = GlobalKey<MenuTableState>();
 
@@ -93,8 +92,7 @@ class _DashboardPageState extends State<DashboardPage> {
                               }
                             },
                           );
-                          
-                          // Refresh list jika input berhasil (return true)
+
                           if (result == true) {
                             if (_selectedIndex == 0) {
                               _menuTableKey.currentState?.refreshMenu();
@@ -169,7 +167,6 @@ class _DashboardPageState extends State<DashboardPage> {
     return InkWell(
       onTap: () {
         if (isLogout) {
-          // Handle logout
           Navigator.pushNamedAndRemoveUntil(context, '/kasir', (route) => false);
         } else {
           setState(() => _selectedIndex = index);

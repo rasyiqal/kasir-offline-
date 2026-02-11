@@ -50,9 +50,8 @@ class Cart extends StatelessWidget {
       );
     }
 
-    // Keranjang Terbuka (Simple & Compact)
     return Container(
-      width: 300, // Lebar dikurangi agar tidak memakan tempat
+      width: 300, 
       decoration: BoxDecoration(
         color: bgWhite,
         boxShadow: [
@@ -65,7 +64,6 @@ class Cart extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Header yang lebih kecil
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -85,7 +83,7 @@ class Cart extends StatelessWidget {
           ),
           const Divider(height: 1),
 
-          // List Item yang lebih rapat
+          // List Item
           Expanded(
             child: cartItems.isEmpty
                 ? _buildEmptyState()
@@ -97,7 +95,6 @@ class Cart extends StatelessWidget {
                   ),
           ),
 
-          // Footer Ringkas
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -127,7 +124,7 @@ class Cart extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryBlue,
                     foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 45), // Tinggi dikurangi
+                    minimumSize: const Size(double.infinity, 45),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     elevation: 0,
                   ),
@@ -164,7 +161,6 @@ class Cart extends StatelessWidget {
             ],
           ),
         ),
-        // Kontrol Jumlah (Lebih kecil)
         Container(
           decoration: BoxDecoration(
             color: Colors.grey.shade100,
