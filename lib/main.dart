@@ -21,7 +21,6 @@ class MyApp extends StatelessWidget {
       initialRoute: '/kasir',
       routes: {
         '/kasir': (context) => const KasirPage(),
-        '/login': (context) => const LoginPage(),
         '/dashboard': (context) => const DashboardPage(),
       },
     );

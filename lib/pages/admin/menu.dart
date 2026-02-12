@@ -7,8 +7,7 @@ class MenuTable extends StatefulWidget {
   final Color bgSurface;
   final Color primaryBlue;
   const MenuTable(
-      {Key? key, required this.bgSurface, required this.primaryBlue})
-      : super(key: key);
+      {super.key, required this.bgSurface, required this.primaryBlue});
 
   @override
   State<MenuTable> createState() => MenuTableState();

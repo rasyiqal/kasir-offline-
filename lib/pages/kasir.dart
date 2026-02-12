@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // Tambahkan intl di pubspec.yaml untuk tanggal
+import 'package:kasir/auth/cekDataKosong.dart';
+import 'package:kasir/auth/login.dart';
 import 'package:kasir/komponen/menu_card.dart';
 import 'package:kasir/komponen/cart.dart';
 import 'package:kasir/auth/database.dart';
@@ -18,9 +21,12 @@ class _KasirPageState extends State<KasirPage> {
   String _selectedCategoryName = '';
   List<Map<String, dynamic>> _kategoriList = [];
   List<Map<String, dynamic>> _menuList = [];
-  List<Map<String, dynamic>> _cartItems = [];
+  List<Map<String, dynamic>> _filteredMenuList = []; 
+  final List<Map<String, dynamic>> _cartItems = [];
+  
   bool _loadingKategori = true;
   bool _loadingMenu = true;
+  final TextEditingController _searchController = TextEditingController();
 
   final Color primaryBlue = const Color(0xFF0D47A1);
   final Color accentBlue = const Color(0xFFE3F2FD);
@@ -33,9 +39,16 @@ class _KasirPageState extends State<KasirPage> {
     _loadKategori();
   }
 
+  // Integrasi dialog peringatan data kosong
+ void _showEmptyWarning() {
+  EmptyWarningDialog.show(context);
+}
+
   Future<void> _loadKategori() async {
     setState(() => _loadingKategori = true);
     final kategori = await AppDatabase.getKategori();
+
+    if (!mounted) return;
 
     setState(() {
       _kategoriList = kategori;
@@ -46,7 +59,8 @@ class _KasirPageState extends State<KasirPage> {
         _selectedCategoryName = _kategoriList[0]['nama'];
         _loadMenu();
       } else {
-        Future.delayed(Duration.zero, () => _showEmptyWarningDialog());
+        // Memanggil class dialog yang sudah Anda pisahkan
+        _showEmptyWarning();
       }
     });
   }
@@ -54,6 +68,7 @@ class _KasirPageState extends State<KasirPage> {
   Future<void> _loadMenu() async {
     setState(() => _loadingMenu = true);
     if (_selectedCategoryId == null) return;
+    
     final db = await AppDatabase.database;
     final menu = await db.rawQuery(
       '''
@@ -65,9 +80,22 @@ class _KasirPageState extends State<KasirPage> {
     ''',
       [_selectedCategoryId],
     );
+
     setState(() {
       _menuList = menu;
+      _filteredMenuList = menu; // Inisialisasi list filter
       _loadingMenu = false;
+      _searchController.clear(); // Reset search saat ganti kategori
+    });
+  }
+
+  // Fitur Pencarian Real-time
+  void _filterMenu(String query) {
+    setState(() {
+      _filteredMenuList = _menuList
+          .where((item) =>
+              item['nama'].toString().toLowerCase().contains(query.toLowerCase()))
+          .toList();
     });
   }
 
@@ -78,10 +106,8 @@ class _KasirPageState extends State<KasirPage> {
       );
 
       if (existingItemIndex >= 0) {
-        // Item sudah ada, tambah quantity
         _cartItems[existingItemIndex]['qty'] += 1;
       } else {
-        // Item baru, tambahkan ke cart
         _cartItems.add({
           'menu_id': menu['id'],
           'nama': menu['nama'],
@@ -94,54 +120,8 @@ class _KasirPageState extends State<KasirPage> {
     });
   }
 
-  void _showEmptyWarningDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange),
-            SizedBox(width: 10),
-            Text('Data Kosong'),
-          ],
-        ),
-        content: const Text(
-          'Menu dan kategori belum diatur. Silahkan login ke akun pengelola untuk menambahkan data.',
-          style: TextStyle(fontSize: 15),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pushNamed(context, '/login'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryBlue,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.login, size: 18),
-                SizedBox(width: 8),
-                Text('Kelola Menu'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   int _getTotalPrice() {
-    int total = 0;
-    for (var item in _cartItems) {
-      total += (item['harga'] as int) * (item['qty'] as int);
-    }
-    return total;
+    return _cartItems.fold(0, (sum, item) => sum + (item['harga'] as int) * (item['qty'] as int));
   }
 
   @override
@@ -151,6 +131,7 @@ class _KasirPageState extends State<KasirPage> {
       body: SafeArea(
         child: Column(
           children: [
+            // HEADER SECTION
             Container(
               height: 70,
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -176,11 +157,7 @@ class _KasirPageState extends State<KasirPage> {
                             color: accentBlue,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(
-                            Icons.storefront_rounded,
-                            color: primaryBlue,
-                            size: 28,
-                          ),
+                          child: Icon(Icons.storefront_rounded, color: primaryBlue, size: 28),
                         ),
                         const SizedBox(width: 15),
                         Text(
@@ -195,19 +172,24 @@ class _KasirPageState extends State<KasirPage> {
                       ],
                     ),
                   ),
+                  // SEARCH BAR
                   Container(
                     width: 350,
-                    height: 40,
+                    height: 45,
                     decoration: BoxDecoration(
                       color: lightGrey,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
                     ),
-                    child: const TextField(
-                      decoration: InputDecoration(
-                        hintText: "Cari produk...",
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: _filterMenu,
+                      decoration: const InputDecoration(
+                        hintText: "Cari produk di kategori ini...",
+                        hintStyle: TextStyle(fontSize: 14),
                         prefixIcon: Icon(Icons.search, size: 20),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 10),
+                        contentPadding: EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
                   ),
@@ -216,7 +198,7 @@ class _KasirPageState extends State<KasirPage> {
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: Text(
-                        "Selasa, 3 Feb 2026",
+                        DateFormat('EEEE, d MMM yyyy').format(DateTime.now()),
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontWeight: FontWeight.w500,
@@ -227,6 +209,8 @@ class _KasirPageState extends State<KasirPage> {
                 ],
               ),
             ),
+            
+            // MAIN CONTENT SECTION
             Expanded(
               child: Row(
                 children: [
@@ -235,9 +219,7 @@ class _KasirPageState extends State<KasirPage> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: lightGrey,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(30),
-                        ),
+                        borderRadius: const BorderRadius.only(topLeft: Radius.circular(30)),
                       ),
                       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
                       child: Column(
@@ -255,61 +237,39 @@ class _KasirPageState extends State<KasirPage> {
                                 ),
                               ),
                               Text(
-                                "${_menuList.length} Produk ditemukan",
-                                style: TextStyle(
-                                  color: Colors.grey[500],
-                                  fontSize: 13,
-                                ),
+                                "${_filteredMenuList.length} Produk ditemukan",
+                                style: TextStyle(color: Colors.grey[500], fontSize: 13),
                               ),
                             ],
                           ),
                           const SizedBox(height: 20),
                           Expanded(
                             child: _loadingMenu
-                                ? Center(
-                                    child: CircularProgressIndicator(
-                                      color: primaryBlue,
-                                    ),
-                                  )
-                                : _menuList.isEmpty
-                                ? _buildEmptyState()
-                                : LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      double targetCardWidth = 135;
-                                      int crossAxisCount =
-                                          (constraints.maxWidth /
-                                                  targetCardWidth)
-                                              .floor();
-                                      if (crossAxisCount < 2)
-                                        crossAxisCount = 2;
-                                      return GridView.builder(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 20,
+                                ? Center(child: CircularProgressIndicator(color: primaryBlue))
+                                : _filteredMenuList.isEmpty
+                                    ? _buildEmptyState()
+                                    : GridView.builder(
+                                        padding: const EdgeInsets.only(bottom: 20),
+                                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                                          maxCrossAxisExtent: 180,
+                                          childAspectRatio: 0.75,
+                                          crossAxisSpacing: 16,
+                                          mainAxisSpacing: 16,
                                         ),
-                                        gridDelegate:
-                                            SliverGridDelegateWithFixedCrossAxisCount(
-                                              crossAxisCount: crossAxisCount,
-                                              childAspectRatio: 0.75,
-                                              crossAxisSpacing: 16,
-                                              mainAxisSpacing: 16,
-                                            ),
-                                        itemCount: _menuList.length,
-                                        itemBuilder: (context, index) =>
-                                            MenuCard(
-                                              index: index,
-                                              primaryBlue: primaryBlue,
-                                              menu: _menuList[index],
-                                              onAddToCart: () =>
-                                                  _addToCart(_menuList[index]),
-                                            ),
-                                      );
-                                    },
-                                  ),
+                                        itemCount: _filteredMenuList.length,
+                                        itemBuilder: (context, index) => MenuCard(
+                                          index: index,
+                                          primaryBlue: primaryBlue,
+                                          menu: _filteredMenuList[index],
+                                          onAddToCart: () => _addToCart(_filteredMenuList[index]),
+                                        ),
+                                      ),
                           ),
                         ],
                       ),
                     ),
                   ),
+                  // CART SECTION
                   Cart(
                     cartVisible: _cartVisible,
                     onShow: () => setState(() => _cartVisible = true),
@@ -319,35 +279,20 @@ class _KasirPageState extends State<KasirPage> {
                     cartItems: _cartItems,
                     totalPrice: _getTotalPrice(),
                     onCheckout: () async {
-                      // fungsi cetak
-                      await NotaService.cetakNota(
-                        items: _cartItems,
-                        total: _getTotalPrice(),
-                      );
-                      setState(() {
-                        _cartItems.clear();
-                      });
+                      if (_cartItems.isEmpty) return;
+                      await NotaService.cetakNota(items: _cartItems, total: _getTotalPrice());
+                      setState(() => _cartItems.clear());
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Transaksi berhasil dan nota dicetak!'),
-                        ),
+                        const SnackBar(content: Text('Transaksi berhasil dan nota dicetak!'), backgroundColor: Colors.green),
                       );
                     },
-                    onRemoveItem: (index) {
-                      setState(() {
-                        if (index >= 0 && index < _cartItems.length) {
-                          _cartItems.removeAt(index);
-                        }
-                      });
-                    },
+                    onRemoveItem: (index) => setState(() => _cartItems.removeAt(index)),
                     onUpdateQuantity: (index, newQty) {
                       setState(() {
-                        if (index >= 0 && index < _cartItems.length) {
-                          if (newQty <= 0) {
-                            _cartItems.removeAt(index);
-                          } else {
-                            _cartItems[index]['qty'] = newQty;
-                          }
+                        if (newQty <= 0) {
+                          _cartItems.removeAt(index);
+                        } else {
+                          _cartItems[index]['qty'] = newQty;
                         }
                       });
                     },
@@ -361,11 +306,11 @@ class _KasirPageState extends State<KasirPage> {
     );
   }
 
+  // SIDEBAR & CATEGORY SECTION
   Widget _buildSidebar() {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       width: _sidebarVisible ? 240 : 70,
-      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: bgWhite,
         border: Border(right: BorderSide(color: Colors.grey.shade100)),
@@ -375,97 +320,56 @@ class _KasirPageState extends State<KasirPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
             child: Row(
-              mainAxisAlignment: _sidebarVisible
-                  ? MainAxisAlignment.spaceBetween
-                  : MainAxisAlignment.center,
+              mainAxisAlignment: _sidebarVisible ? MainAxisAlignment.spaceBetween : MainAxisAlignment.center,
               children: [
                 if (_sidebarVisible)
-                  const Expanded(
-                    child: Text(
-                      'KATEGORI',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                      ),
-                      overflow: TextOverflow.fade,
-                      softWrap: false,
-                    ),
-                  ),
+                  const Text('KATEGORI', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
                 IconButton(
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                  icon: Icon(
-                    _sidebarVisible
-                        ? Icons.arrow_back_ios_new
-                        : Icons.menu_open,
-                    size: 20,
-                  ),
-                  onPressed: () =>
-                      setState(() => _sidebarVisible = !_sidebarVisible),
+                  icon: Icon(_sidebarVisible ? Icons.arrow_back_ios_new : Icons.menu, size: 20),
+                  onPressed: () => setState(() => _sidebarVisible = !_sidebarVisible),
                 ),
               ],
             ),
           ),
           Expanded(
             child: _loadingKategori
-                ? Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: primaryBlue,
-                    ),
-                  )
+                ? Center(child: CircularProgressIndicator(strokeWidth: 2, color: primaryBlue))
                 : ListView.builder(
-                    padding: EdgeInsets.zero,
                     itemCount: _kategoriList.length,
-                    itemBuilder: (context, index) =>
-                        _categoryItem(_kategoriList[index]),
+                    itemBuilder: (context, index) => _categoryItem(_kategoriList[index]),
                   ),
           ),
           const Divider(height: 1),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-            child: InkWell(
-              onTap: () {
-                Navigator.pushNamed(context, '/login');
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                padding: EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: _sidebarVisible ? 16 : 0,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: Colors.grey.shade50,
-                ),
-                child: Row(
-                  mainAxisAlignment: _sidebarVisible
-                      ? MainAxisAlignment.start
-                      : MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.settings_suggest, color: primaryBlue, size: 20),
-                    if (_sidebarVisible) ...[
-                      const SizedBox(width: 15),
-                      const Expanded(
-                        child: Text(
-                          'Kelola Menu',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
+          _buildAdminButton(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAdminButton() {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: InkWell(
+        onTap: () => showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const LoginPopup(),
+        ),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 12, horizontal: _sidebarVisible ? 16 : 0),
+          decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            mainAxisAlignment: _sidebarVisible ? MainAxisAlignment.start : MainAxisAlignment.center,
+            children: [
+              Icon(Icons.settings_suggest, color: primaryBlue, size: 20),
+              if (_sidebarVisible) ...[
+                const SizedBox(width: 15),
+                const Text('Kelola Menu', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -491,15 +395,9 @@ class _KasirPageState extends State<KasirPage> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
-            mainAxisAlignment: _sidebarVisible
-                ? MainAxisAlignment.start
-                : MainAxisAlignment.center,
+            mainAxisAlignment: _sidebarVisible ? MainAxisAlignment.start : MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.circle,
-                size: 8,
-                color: isSelected ? Colors.white : primaryBlue.withOpacity(0.5),
-              ),
+              Icon(Icons.circle, size: 8, color: isSelected ? Colors.white : primaryBlue.withOpacity(0.5)),
               if (_sidebarVisible) ...[
                 const SizedBox(width: 15),
                 Expanded(
@@ -507,12 +405,9 @@ class _KasirPageState extends State<KasirPage> {
                     kategori['nama'],
                     style: TextStyle(
                       color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.w500,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                     ),
                     overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
                   ),
                 ),
               ],
@@ -528,10 +423,10 @@ class _KasirPageState extends State<KasirPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey[300]),
+          Icon(Icons.search_off_rounded, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
-            "Menu belum tersedia",
+            _searchController.text.isEmpty ? "Menu belum tersedia" : "Produk tidak ditemukan",
             style: TextStyle(color: Colors.grey[500], fontSize: 16),
           ),
         ],

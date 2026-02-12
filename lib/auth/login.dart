@@ -1,131 +1,209 @@
 import 'package:flutter/material.dart';
+import 'package:pinput/pinput.dart';
+import 'database.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class LoginPopup extends StatefulWidget {
+  const LoginPopup({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<LoginPopup> createState() => _LoginPopupState();
 }
 
-class _LoginPageState extends State<LoginPage> {
-  bool _obscureText = true;
+class _LoginPopupState extends State<LoginPopup> {
+  final TextEditingController _pinController = TextEditingController();
+  final FocusNode _pinFocusNode = FocusNode();
+  String _errorMessage = "";
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    _pinFocusNode.dispose();
+    super.dispose();
+  }
+
+  // --- UI HELPER ---
+  PinTheme _getPinTheme({bool isError = false}) {
+    return PinTheme(
+      width: 45,
+      height: 50,
+      textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+      decoration: BoxDecoration(
+        color: isError
+            ? Colors.red.shade50
+            : Colors.grey.shade50, // Samakan dengan Reset PIN
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isError ? Colors.red.withOpacity(0.5) : Colors.grey.shade300,
+          width: 1.5,
+        ),
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    setState(() => _errorMessage = message);
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        setState(() => _errorMessage = "");
+      }
+    });
+  }
+
+  // --- LOGIC ---
+  Future<void> _prosesLogin(String pin) async {
+    if (pin.length < 6) {
+      _showError("PIN harus 6 digit");
+      return;
+    }
+
+    final isValid = await AppDatabase.validatePin(pin);
+    if (isValid) {
+      if (!mounted) return;
+      Navigator.pop(context, true);
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/dashboard',
+        (route) => false,
+      );
+    } else {
+      _pinController.clear();
+      _pinFocusNode.requestFocus();
+      _showError("PIN salah, silakan coba lagi");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Dialog(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: SingleChildScrollView(
+        child: Container(
+          constraints: const BoxConstraints(
+            maxWidth: 360,
+          ), // Samakan lebar dengan Reset PIN
+          padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 100),
-              // Header Section
-              const Text(
-                "Welcome Back",
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
+              // Header Samakan Style dengan Reset PIN
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.lock_outline_rounded,
                   color: Colors.blue,
+                  size: 32,
                 ),
               ),
+              const SizedBox(height: 16),
               const Text(
-                "Sign in to continue",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+                "Keamanan PIN",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 60),
-
-              // Email Field
-              TextField(
-                decoration: InputDecoration(
-                  labelText: "Email",
-                  prefixIcon: const Icon(Icons.email_outlined, color: Colors.blue),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.blueAccent),
-                  ),
-                ),
+              const SizedBox(height: 8),
+              Text(
+                "Masukkan 6 digit PIN pengelola",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
               ),
-              const SizedBox(height: 20),
 
-              // Password Field
-              TextField(
-                obscureText: _obscureText,
-                decoration: InputDecoration(
-                  labelText: "Password",
-                  prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureText ? Icons.visibility_off : Icons.visibility,
-                      color: Colors.grey,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureText = !_obscureText;
-                      });
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+              const SizedBox(height: 8),
+
+              SizedBox(
+                height: 32,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: _errorMessage.isNotEmpty
+                      ? Container(
+                          key: ValueKey(_errorMessage),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            _errorMessage,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ),
 
-              // Forgot Password
+              const SizedBox(height: 8),
+
+              // Pinput Field
+              Pinput(
+                length: 6,
+                controller: _pinController,
+                focusNode: _pinFocusNode,
+                obscureText: true,
+                autofocus: true,
+                defaultPinTheme: _getPinTheme(
+                  isError: _errorMessage.isNotEmpty,
+                ),
+                focusedPinTheme: _getPinTheme().copyWith(
+                  decoration: _getPinTheme().decoration!.copyWith(
+                    border: Border.all(color: Colors.blue, width: 2),
+                  ),
+                ),
+                onCompleted: _prosesLogin,
+              ),
+
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {},
-                  child: const Text("Forgot Password?"),
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // Login Button
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                  ),
-                  onPressed: () {
-                    Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false);
-                  },
+                  onPressed: () => Navigator.pop(context, "reset"),
                   child: const Text(
-                    "LOGIN",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                    "Lupa PIN?",
+                    style: TextStyle(color: Colors.blue),
                   ),
                 ),
               ),
-              
-              const SizedBox(height: 20),
-              
-              // Register Link
+
+              const SizedBox(height: 16),
+
+              // Action Buttons Samakan dengan Reset PIN
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account?"),
-                  TextButton(
-                    onPressed: () {},
-                    child: const Text(
-                      "Register",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.grey.shade700,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text("Batal"),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      onPressed: () => _prosesLogin(_pinController.text),
+                      child: const Text(
+                        "MASUK",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ],

@@ -16,7 +16,7 @@ class AppDatabase {
     final path = join(dbPath, 'kasir.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE kategori (
@@ -34,6 +34,38 @@ class AppDatabase {
             FOREIGN KEY (kategori_id) REFERENCES kategori(id) ON DELETE SET NULL
           );
         ''');
+        await db.execute('''
+          CREATE TABLE pin (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pin TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+          );
+        ''');
+        // Insert default PIN
+        await db.insert('pin', {
+          'pin': '123456',
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('''
+            CREATE TABLE pin (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              pin TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+          ''');
+          // Insert default PIN for existing database
+          await db.insert('pin', {
+            'pin': '123456',
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+        }
       },
     );
   }
@@ -132,5 +164,44 @@ class AppDatabase {
     } catch (e) {
       print('Error deleting image: $e');
     }
+  }
+
+  // PIN
+  static Future<String?> getCurrentPin() async {
+    final db = await database;
+    final result = await db.query('pin', orderBy: 'id DESC', limit: 1);
+    if (result.isNotEmpty) {
+      return result.first['pin'] as String;
+    }
+    return null;
+  }
+
+  static Future<bool> validatePin(String inputPin) async {
+    final currentPin = await getCurrentPin();
+    return currentPin == inputPin;
+  }
+
+  static Future<int> updatePin(String oldPin, String newPin) async {
+    final db = await database;
+
+    // Validate old PIN first
+    final isValidOldPin = await validatePin(oldPin);
+    if (!isValidOldPin) {
+      throw Exception('PIN lama tidak sesuai');
+    }
+
+    return await db.update('pin', {
+      'pin': newPin,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, where: 'id = (SELECT MAX(id) FROM pin)');
+  }
+
+  static Future<int> insertNewPin(String newPin) async {
+    final db = await database;
+    return await db.insert('pin', {
+      'pin': newPin,
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    });
   }
 }

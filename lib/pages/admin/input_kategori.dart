@@ -4,7 +4,7 @@ import 'package:kasir/auth/database.dart';
 
 class InputKategoriDialog extends StatefulWidget {
   final Map<String, dynamic>? kategoriData; // Untuk edit mode
-  const InputKategoriDialog({Key? key, this.kategoriData}) : super(key: key);
+  const InputKategoriDialog({super.key, this.kategoriData});
 
   @override
   State<InputKategoriDialog> createState() => _InputKategoriDialogState();

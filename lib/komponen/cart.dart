@@ -13,7 +13,7 @@ class Cart extends StatelessWidget {
   final VoidCallback? onCheckout;
 
   const Cart({
-    Key? key,
+    super.key,
     required this.cartVisible,
     required this.onShow,
     required this.onHide,
@@ -24,7 +24,7 @@ class Cart extends StatelessWidget {
     this.onRemoveItem,
     this.onUpdateQuantity,
     this.onCheckout,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

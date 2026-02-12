@@ -6,7 +6,7 @@ import 'package:kasir/auth/database.dart';
 class InputMenuDialog extends StatefulWidget {
   final Map<String, dynamic>? menuData;
 
-  const InputMenuDialog({Key? key, this.menuData}) : super(key: key);
+  const InputMenuDialog({super.key, this.menuData});
 
   @override
   State<InputMenuDialog> createState() => _InputMenuDialogState();
@@ -178,7 +178,9 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                       onPressed: () async {
                         if (namaMenu.trim().isEmpty ||
                             hargaMenu.trim().isEmpty ||
-                            kategoriTerpilihId == null) return;
+                            kategoriTerpilihId == null) {
+                          return;
+                        }
                         
                         try {
                           if (widget.menuData == null) {

@@ -4,7 +4,6 @@ import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 
 class NotaService {
-  // Helper untuk format mata uang sederhana
   static String formatCurrency(int value) {
     return value.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -67,7 +66,7 @@ class NotaService {
                   children: [
                     pw.Row(
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [pw.Text("No"), pw.Text("$orderNumber")],
+                      children: [pw.Text("No"), pw.Text(orderNumber)],
                     ),
                     pw.Row(
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -75,7 +74,7 @@ class NotaService {
                     ),
                     pw.Row(
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [pw.Text("Kasir"), pw.Text("$namaKasir")],
+                      children: [pw.Text("Kasir"), pw.Text(namaKasir)],
                     ),
                   ],
                 ),

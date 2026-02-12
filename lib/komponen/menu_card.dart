@@ -8,12 +8,12 @@ class MenuCard extends StatelessWidget {
   final VoidCallback? onAddToCart;
 
   const MenuCard({
-    Key? key,
+    super.key,
     required this.index,
     required this.primaryBlue,
     required this.menu,
     this.onAddToCart,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

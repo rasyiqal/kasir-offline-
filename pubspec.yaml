@@ -39,6 +39,7 @@ dependencies:
   printing: ^5.14.2
   pdf: ^3.11.3
   intl: ^0.20.2
+  pinput: ^6.0.2
 
 dev_dependencies:
   flutter_test:

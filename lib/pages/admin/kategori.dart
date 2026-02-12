@@ -6,10 +6,10 @@ class CategoryList extends StatefulWidget {
   final Function(int)? onDelete;
 
   const CategoryList({
-    Key? key,
+    super.key,
     this.onEdit,
     this.onDelete,
-  }) : super(key: key);
+  });
 
   @override
   State<CategoryList> createState() => CategoryListState();
