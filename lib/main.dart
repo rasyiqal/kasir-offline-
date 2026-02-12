@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:kasir/auth/login.dart';
 import 'package:kasir/pages/dashboard.dart';
 import 'package:kasir/pages/kasir.dart';
 
