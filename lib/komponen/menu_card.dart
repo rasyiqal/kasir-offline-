@@ -109,26 +109,32 @@ class MenuCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImage(String? gambar) {
-    if (gambar != null && gambar.isNotEmpty && File(gambar).existsSync()) {
-      return Image.file(
-        File(gambar),
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
-      );
-    }
+ Widget _buildImage(String? gambar) {
+  if (gambar == null || gambar.isEmpty) {
     return _buildPlaceholder();
   }
 
-  Widget _buildPlaceholder() {
-    return Center(
-      child: Icon(
-        Icons.fastfood_rounded,
-        color: primaryBlue.withOpacity(0.2),
-        size: 40,
-      ),
+  final file = File(gambar);
+  if (file.existsSync()) {
+    return Image.file(
+      file,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
     );
   }
+
+  return _buildPlaceholder();
+}
+
+Widget _buildPlaceholder() {
+  return Center(
+    child: Icon(
+      Icons.fastfood_rounded,
+      color: primaryBlue.withOpacity(0.2),
+      size: 40,
+    ),
+  );
+}
 
   String _formatRupiah(dynamic value) {
     if (value == null) return '0';

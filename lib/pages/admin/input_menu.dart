@@ -92,6 +92,19 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                             Text('Klik untuk unggah foto menu',
                                 style: TextStyle(
                                     fontSize: 13, color: Colors.grey[600])),
+                            const SizedBox(height: 8),
+                            // Tombol hapus hanya muncul jika gambarLama ada (edit mode)
+                            if (gambarLama != null && gambarLama!.isNotEmpty)
+                              TextButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    gambarMenu = null;
+                                    gambarLama = null;
+                                  });
+                                },
+                                icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+                                label: const Text('Hapus Foto', style: TextStyle(color: Colors.red)),
+                              ),
                           ],
                         )
                       : ClipRRect(
@@ -105,13 +118,32 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                               Positioned(
                                 right: 12,
                                 top: 12,
-                                child: CircleAvatar(
-                                  backgroundColor: Colors.black54,
-                                  child: IconButton(
-                                    icon: const Icon(Icons.edit,
-                                        color: Colors.white, size: 20),
-                                    onPressed: _pickImage,
-                                  ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundColor: Colors.black54,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.edit,
+                                            color: Colors.white, size: 20),
+                                        onPressed: _pickImage,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    CircleAvatar(
+                                      backgroundColor: Colors.black54,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.delete,
+                                            color: Colors.white, size: 20),
+                                        onPressed: () {
+                                          setState(() {
+                                            gambarMenu = null;
+                                            gambarLama = null;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -192,12 +224,12 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                               kategoriId: kategoriTerpilihId!,
                             );
                           } else {
-                            if (gambarMenu != null && 
-                                gambarLama != null && 
-                                gambarMenu!.path != gambarLama!) {
+                            if (gambarMenu == null && gambarLama != null && gambarLama!.isNotEmpty) {
                               await _deleteImageFile(gambarLama!);
                             }
-                            
+                            if (gambarMenu != null && gambarLama != null && gambarMenu!.path != gambarLama!) {
+                              await _deleteImageFile(gambarLama!);
+                            }
                             await AppDatabase.updateMenu(
                               id: widget.menuData!['id'] as int,
                               nama: namaMenu.trim(),
