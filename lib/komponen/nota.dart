@@ -227,6 +227,7 @@ class NotaService {
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => doc.save(),
       name: 'Nota_$orderNumber',
+      dynamicLayout: false,
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:kasir/komponen/menu_card.dart';
 import 'package:kasir/komponen/cart.dart';
 import 'package:kasir/auth/database.dart';
 import 'package:kasir/komponen/nota.dart';
+import 'package:kasir/komponen/note_thermal.dart';
 
 class KasirPage extends StatefulWidget {
   const KasirPage({super.key});
@@ -21,9 +22,9 @@ class _KasirPageState extends State<KasirPage> {
   String _selectedCategoryName = '';
   List<Map<String, dynamic>> _kategoriList = [];
   List<Map<String, dynamic>> _menuList = [];
-  List<Map<String, dynamic>> _filteredMenuList = []; 
+  List<Map<String, dynamic>> _filteredMenuList = [];
   final List<Map<String, dynamic>> _cartItems = [];
-  
+
   bool _loadingKategori = true;
   bool _loadingMenu = true;
   final TextEditingController _searchController = TextEditingController();
@@ -40,9 +41,9 @@ class _KasirPageState extends State<KasirPage> {
   }
 
   // Integrasi dialog peringatan data kosong
- void _showEmptyWarning() {
-  EmptyWarningDialog.show(context);
-}
+  void _showEmptyWarning() {
+    EmptyWarningDialog.show(context);
+  }
 
   Future<void> _loadKategori() async {
     setState(() => _loadingKategori = true);
@@ -68,7 +69,7 @@ class _KasirPageState extends State<KasirPage> {
   Future<void> _loadMenu() async {
     setState(() => _loadingMenu = true);
     if (_selectedCategoryId == null) return;
-    
+
     final db = await AppDatabase.database;
     final menu = await db.rawQuery(
       '''
@@ -83,18 +84,21 @@ class _KasirPageState extends State<KasirPage> {
 
     setState(() {
       _menuList = menu;
-      _filteredMenuList = menu; // Inisialisasi list filter
+      _filteredMenuList = menu;
       _loadingMenu = false;
-      _searchController.clear(); // Reset search saat ganti kategori
+      _searchController.clear();
     });
   }
 
-  // Fitur Pencarian Real-time
+  // search
   void _filterMenu(String query) {
     setState(() {
       _filteredMenuList = _menuList
-          .where((item) =>
-              item['nama'].toString().toLowerCase().contains(query.toLowerCase()))
+          .where(
+            (item) => item['nama'].toString().toLowerCase().contains(
+              query.toLowerCase(),
+            ),
+          )
           .toList();
     });
   }
@@ -121,7 +125,10 @@ class _KasirPageState extends State<KasirPage> {
   }
 
   int _getTotalPrice() {
-    return _cartItems.fold(0, (sum, item) => sum + (item['harga'] as int) * (item['qty'] as int));
+    return _cartItems.fold(
+      0,
+      (sum, item) => sum + (item['harga'] as int) * (item['qty'] as int),
+    );
   }
 
   @override
@@ -157,7 +164,11 @@ class _KasirPageState extends State<KasirPage> {
                             color: accentBlue,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(Icons.storefront_rounded, color: primaryBlue, size: 28),
+                          child: Icon(
+                            Icons.storefront_rounded,
+                            color: primaryBlue,
+                            size: 28,
+                          ),
                         ),
                         const SizedBox(width: 15),
                         Text(
@@ -209,7 +220,7 @@ class _KasirPageState extends State<KasirPage> {
                 ],
               ),
             ),
-            
+
             // MAIN CONTENT SECTION
             Expanded(
               child: Row(
@@ -219,7 +230,9 @@ class _KasirPageState extends State<KasirPage> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: lightGrey,
-                        borderRadius: const BorderRadius.only(topLeft: Radius.circular(30)),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(30),
+                        ),
                       ),
                       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
                       child: Column(
@@ -238,32 +251,41 @@ class _KasirPageState extends State<KasirPage> {
                               ),
                               Text(
                                 "${_filteredMenuList.length} Produk ditemukan",
-                                style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 20),
                           Expanded(
                             child: _loadingMenu
-                                ? Center(child: CircularProgressIndicator(color: primaryBlue))
+                                ? Center(
+                                    child: CircularProgressIndicator(
+                                      color: primaryBlue,
+                                    ),
+                                  )
                                 : _filteredMenuList.isEmpty
-                                    ? _buildEmptyState()
-                                    : GridView.builder(
-                                        padding: const EdgeInsets.only(bottom: 20),
-                                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                                ? _buildEmptyState()
+                                : GridView.builder(
+                                    padding: const EdgeInsets.only(bottom: 20),
+                                    gridDelegate:
+                                        const SliverGridDelegateWithMaxCrossAxisExtent(
                                           maxCrossAxisExtent: 180,
                                           childAspectRatio: 0.75,
                                           crossAxisSpacing: 16,
                                           mainAxisSpacing: 16,
                                         ),
-                                        itemCount: _filteredMenuList.length,
-                                        itemBuilder: (context, index) => MenuCard(
-                                          index: index,
-                                          primaryBlue: primaryBlue,
-                                          menu: _filteredMenuList[index],
-                                          onAddToCart: () => _addToCart(_filteredMenuList[index]),
-                                        ),
-                                      ),
+                                    itemCount: _filteredMenuList.length,
+                                    itemBuilder: (context, index) => MenuCard(
+                                      index: index,
+                                      primaryBlue: primaryBlue,
+                                      menu: _filteredMenuList[index],
+                                      onAddToCart: () =>
+                                          _addToCart(_filteredMenuList[index]),
+                                    ),
+                                  ),
                           ),
                         ],
                       ),
@@ -280,13 +302,32 @@ class _KasirPageState extends State<KasirPage> {
                     totalPrice: _getTotalPrice(),
                     onCheckout: () async {
                       if (_cartItems.isEmpty) return;
-                      await NotaService.cetakNota(items: _cartItems, total: _getTotalPrice());
-                      setState(() => _cartItems.clear());
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Transaksi berhasil dan nota dicetak!'), backgroundColor: Colors.green),
-                      );
+
+                      // Tampilkan loading jika perlu
+                      try {
+                        await NotaService_thermal.cetakNota(
+                          items: _cartItems,
+                          total: _getTotalPrice(),
+                        );
+
+                        setState(() => _cartItems.clear());
+                        // ScaffoldMessenger.of(context).showSnackBar(
+                        //   const SnackBar(
+                        //     content: Text('Nota berhasil dicetak!'),
+                        //     backgroundColor: Colors.green,
+                        //   ),
+                        // );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Gagal cetak: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
                     },
-                    onRemoveItem: (index) => setState(() => _cartItems.removeAt(index)),
+                    onRemoveItem: (index) =>
+                        setState(() => _cartItems.removeAt(index)),
                     onUpdateQuantity: (index, newQty) {
                       setState(() {
                         if (newQty <= 0) {
@@ -320,23 +361,38 @@ class _KasirPageState extends State<KasirPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
             child: Row(
-              mainAxisAlignment: _sidebarVisible ? MainAxisAlignment.spaceBetween : MainAxisAlignment.center,
+              mainAxisAlignment: _sidebarVisible
+                  ? MainAxisAlignment.spaceBetween
+                  : MainAxisAlignment.center,
               children: [
                 if (_sidebarVisible)
-                  const Text('KATEGORI', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                  const Text(
+                    'KATEGORI',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                  ),
                 IconButton(
-                  icon: Icon(_sidebarVisible ? Icons.arrow_back_ios_new : Icons.menu, size: 20),
-                  onPressed: () => setState(() => _sidebarVisible = !_sidebarVisible),
+                  icon: Icon(
+                    _sidebarVisible ? Icons.arrow_back_ios_new : Icons.menu,
+                    size: 20,
+                  ),
+                  onPressed: () =>
+                      setState(() => _sidebarVisible = !_sidebarVisible),
                 ),
               ],
             ),
           ),
           Expanded(
             child: _loadingKategori
-                ? Center(child: CircularProgressIndicator(strokeWidth: 2, color: primaryBlue))
+                ? Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: primaryBlue,
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: _kategoriList.length,
-                    itemBuilder: (context, index) => _categoryItem(_kategoriList[index]),
+                    itemBuilder: (context, index) =>
+                        _categoryItem(_kategoriList[index]),
                   ),
           ),
           const Divider(height: 1),
@@ -357,15 +413,26 @@ class _KasirPageState extends State<KasirPage> {
         ),
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: EdgeInsets.symmetric(vertical: 12, horizontal: _sidebarVisible ? 16 : 0),
-          decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
+          padding: EdgeInsets.symmetric(
+            vertical: 12,
+            horizontal: _sidebarVisible ? 16 : 0,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Row(
-            mainAxisAlignment: _sidebarVisible ? MainAxisAlignment.start : MainAxisAlignment.center,
+            mainAxisAlignment: _sidebarVisible
+                ? MainAxisAlignment.start
+                : MainAxisAlignment.center,
             children: [
               Icon(Icons.settings_suggest, color: primaryBlue, size: 20),
               if (_sidebarVisible) ...[
                 const SizedBox(width: 15),
-                const Text('Kelola Menu', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Kelola Menu',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ],
             ],
           ),
@@ -395,9 +462,15 @@ class _KasirPageState extends State<KasirPage> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
-            mainAxisAlignment: _sidebarVisible ? MainAxisAlignment.start : MainAxisAlignment.center,
+            mainAxisAlignment: _sidebarVisible
+                ? MainAxisAlignment.start
+                : MainAxisAlignment.center,
             children: [
-              Icon(Icons.circle, size: 8, color: isSelected ? Colors.white : primaryBlue.withOpacity(0.5)),
+              Icon(
+                Icons.circle,
+                size: 8,
+                color: isSelected ? Colors.white : primaryBlue.withOpacity(0.5),
+              ),
               if (_sidebarVisible) ...[
                 const SizedBox(width: 15),
                 Expanded(
@@ -405,7 +478,9 @@ class _KasirPageState extends State<KasirPage> {
                     kategori['nama'],
                     style: TextStyle(
                       color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.w500,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -426,7 +501,9 @@ class _KasirPageState extends State<KasirPage> {
           Icon(Icons.search_off_rounded, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
-            _searchController.text.isEmpty ? "Menu belum tersedia" : "Produk tidak ditemukan",
+            _searchController.text.isEmpty
+                ? "Menu belum tersedia"
+                : "Produk tidak ditemukan",
             style: TextStyle(color: Colors.grey[500], fontSize: 16),
           ),
         ],

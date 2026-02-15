@@ -42,12 +42,17 @@ class AppDatabase {
             updated_at TEXT NOT NULL
           );
         ''');
-        // Insert default PIN
+
+        // PIN dimasukkan di onCreate karena ini data krusial pertama kali
         await db.insert('pin', {
           'pin': '123456',
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         });
+      },
+      // KITA TAMBAHKAN onOpen UNTUK SEEDING KATEGORI
+      onOpen: (db) async {
+        await _seedData(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -59,7 +64,6 @@ class AppDatabase {
               updated_at TEXT NOT NULL
             );
           ''');
-          // Insert default PIN for existing database
           await db.insert('pin', {
             'pin': '123456',
             'created_at': DateTime.now().toIso8601String(),
@@ -68,6 +72,22 @@ class AppDatabase {
         }
       },
     );
+  }
+
+  // FUNGSI SEED DATA TERPISAH
+  static Future<void> _seedData(Database db) async {
+    // Cek apakah tabel kategori kosong
+    final List<Map<String, dynamic>> kategori = await db.query('kategori');
+
+    if (kategori.isEmpty) {
+      // print("Seeding data kategori...");
+      Batch batch = db.batch();
+      batch.insert('kategori', {'nama': 'Makanan'});
+      batch.insert('kategori', {'nama': 'Minuman'});
+      await batch.commit(noResult: true);
+    } else {
+      // print("Data kategori sudah ada, skip seeding.");
+    }
   }
 
   // KATEGORI

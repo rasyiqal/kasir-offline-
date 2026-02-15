@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kasir/pages/dashboard.dart';
 import 'package:kasir/pages/kasir.dart';
-import 'package:permission_handler/permission_handler.dart'; 
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
 
 void main() {
   runApp(const MyApp());
@@ -22,14 +23,14 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _requestBluetoothPermission() async {
-    Map<Permission, PermissionStatus> statuses = await [
-      Permission.bluetooth,
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-      Permission.location,
-    ].request();
-    
-    print("Status Izin: $statuses");
+    if (Platform.isAndroid) {
+      if (await Permission.bluetoothScan.request().isGranted &&
+          await Permission.bluetoothConnect.request().isGranted) {
+        // print("Izin Bluetooth diizinkan");
+      }
+
+      await Permission.location.request();
+    }
   }
 
   @override
@@ -37,9 +38,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Kasir App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: ThemeData(primarySwatch: Colors.blue),
       initialRoute: '/kasir',
       routes: {
         '/kasir': (context) => const KasirPage(),
