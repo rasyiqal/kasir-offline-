@@ -6,7 +6,9 @@ import 'package:kasir/komponen/konfirmasi_dialog.dart';
 import 'package:kasir/komponen/menu_card.dart';
 import 'package:kasir/komponen/cart.dart';
 import 'package:kasir/auth/database.dart';
-import 'package:kasir/komponen/nota_thermal.dart';
+import 'package:kasir/print/nota_thermal.dart';
+import 'package:kasir/print/print_manager.dart';
+import 'package:kasir/widget/print_option.dart';
 
 class KasirPage extends StatefulWidget {
   const KasirPage({super.key});
@@ -140,6 +142,7 @@ class _KasirPageState extends State<KasirPage> {
         child: Column(
           children: [
             // HEADER SECTION
+            // --- BAGIAN HEADER YANG DIPERBAIKI ---
             Container(
               height: 70,
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -155,8 +158,10 @@ class _KasirPageState extends State<KasirPage> {
               ),
               child: Row(
                 children: [
-                  Expanded(
-                    flex: 1,
+                  // 1. LOGO SECTION
+                  SizedBox(
+                    // Gunakan SizedBox atau Expanded dengan flex
+                    width: 200,
                     child: Row(
                       children: [
                         Container(
@@ -184,29 +189,82 @@ class _KasirPageState extends State<KasirPage> {
                       ],
                     ),
                   ),
-                  // SEARCH BAR
-                  Container(
-                    width: 350,
-                    height: 45,
-                    decoration: BoxDecoration(
-                      color: lightGrey,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: _filterMenu,
-                      decoration: const InputDecoration(
-                        hintText: "Cari produk di kategori ini...",
-                        hintStyle: TextStyle(fontSize: 14),
-                        prefixIcon: Icon(Icons.search, size: 20),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 12),
+
+                  // 2. SEARCH & PRINTER SECTION (Tengah)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          // Search Bar
+                          Expanded(
+                            child: Container(
+                              height: 45,
+                              decoration: BoxDecoration(
+                                color: lightGrey,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: TextField(
+                                controller: _searchController,
+                                onChanged: _filterMenu,
+                                decoration: const InputDecoration(
+                                  hintText: "Cari produk...",
+                                  hintStyle: TextStyle(fontSize: 14),
+                                  prefixIcon: Icon(Icons.search, size: 20),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Icon Printer
+                          Container(
+                            height: 45,
+                            width: 45,
+                            decoration: BoxDecoration(
+                              color: PrinterManager().isReady
+                                  ? Colors.blue.shade50
+                                  : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: PrinterManager().isReady
+                                    ? Colors.blue.shade200
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.print_rounded,
+                                color: PrinterManager().isReady
+                                    ? Colors.blue.shade700
+                                    : Colors.grey.shade600,
+                                size: 22,
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const PrintOptionPage(),
+                                  ),
+                                ).then(
+                                  (_) => setState(() {}),
+                                ); // Refresh status warna icon setelah kembali
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  Expanded(
-                    flex: 1,
+
+                  // 3. DATE SECTION (Kanan)
+                  SizedBox(
+                    width: 200,
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: Text(
@@ -333,7 +391,7 @@ class _KasirPageState extends State<KasirPage> {
                               throw {'id': transaksiId, 'error': e.toString()};
                             }
 
-                            return transaksiId; 
+                            return transaksiId;
                           },
                         ),
                       );

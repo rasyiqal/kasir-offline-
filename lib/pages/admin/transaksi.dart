@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:kasir/auth/database.dart';
+import 'package:kasir/print/nota_thermal.dart';
 
 class TransaksiPage extends StatefulWidget {
   const TransaksiPage({super.key});
@@ -60,67 +61,277 @@ class _TransaksiPageState extends State<TransaksiPage> {
     });
   }
 
-  // --- FUNGSI EDIT KUANTITAS ---
+  // --- TAMBAH MENU KE TRANSAKSI ---
+  Future<void> _addMenuToTransaksi() async {
+    final db = await AppDatabase.database;
+    // Ambil menu dan urutkan berdasarkan nama agar mudah dicari
+    final allMenus = await db.query('menu', orderBy: 'nama ASC');
+
+    final Map<String, dynamic>? selectedMenu = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white, // Background Putih
+        surfaceTintColor:
+            Colors.white, // Memastikan tidak ada tint ungu/biru dari Material 3
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: EdgeInsets.zero,
+        title: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: Color(0xFF0D47A1), // Header Biru agar kontras
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.add_shopping_cart, color: Colors.white),
+              SizedBox(width: 12),
+              Text(
+                "Tambah Menu",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        content: SizedBox(
+          width:
+              MediaQuery.of(context).size.width *
+              0.4, // Atur lebar agar tidak terlalu lebar di tablet
+          child: allMenus.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Text("Data menu kosong", textAlign: TextAlign.center),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: allMenus.length,
+                  separatorBuilder: (context, index) =>
+                      Divider(color: Colors.grey[100]),
+                  itemBuilder: (context, index) {
+                    final menu = allMenus[index];
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.blue[50],
+                        child: const Icon(
+                          Icons.restaurant_menu,
+                          color: Color(0xFF0D47A1),
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        menu['nama'].toString(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      subtitle: Text(
+                        currencyFormat.format(menu['harga'] as int),
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      trailing: const Icon(
+                        Icons.add_circle_outline,
+                        color: Colors.grey,
+                      ),
+                      onTap: () => Navigator.pop(context, menu),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              "Batal",
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedMenu != null && _selectedId != null) {
+      await db.insert('transaksi_detail', {
+        'transaksi_id': _selectedId,
+        'menu_id': selectedMenu['id'],
+        'nama_menu': selectedMenu['nama'].toString(),
+        'qty': 1,
+        'harga_saat_ini': selectedMenu['harga'] as int,
+        'subtotal': selectedMenu['harga'] as int,
+      });
+      await _updateTotalTransaksi();
+    }
+  }
+
+  // --- HAPUS SATU ITEM MENU ---
+  Future<void> _deleteItem(int detailId) async {
+    final db = await AppDatabase.database;
+    await db.delete('transaksi_detail', where: 'id = ?', whereArgs: [detailId]);
+    await _updateTotalTransaksi();
+  }
+
+  // Fungsi pembantu untuk sinkronisasi total harga
+  Future<void> _updateTotalTransaksi() async {
+    final db = await AppDatabase.database;
+    final result = await db.rawQuery(
+      'SELECT SUM(subtotal) as total FROM transaksi_detail WHERE transaksi_id = ?',
+      [_selectedId],
+    );
+    int newTotal = (result.first['total'] as int?) ?? 0;
+
+    await db.update(
+      'transaksi',
+      {'total_harga': newTotal},
+      where: 'id = ?',
+      whereArgs: [_selectedId],
+    );
+
+    await _loadTransaksi();
+    await _loadDetail(_selectedId!);
+  }
+
+  // --- FUNGSI CETAK ULANG ---
+  void _reprint() {
+    if (_selectedId == null) return;
+    final trx = _allTransaksi.firstWhere((t) => t['id'] == _selectedId);
+
+    List<Map<String, dynamic>> itemsToPrint = _selectedDetails
+        .map(
+          (d) => {
+            'nama': d['nama_menu'],
+            'qty': d['qty'],
+            'harga': d['harga_saat_ini'],
+          },
+        )
+        .toList();
+
+    NotaService_thermal.cetakNota(
+      items: itemsToPrint,
+      total: trx['total_harga'],
+      metodeBayar: trx['metode_pembayaran'] ?? 'Cash',
+      transactionId: _selectedId,
+    );
+  }
+
   Future<void> _editQty(Map<String, dynamic> item) async {
     int currentQty = item['qty'];
     final TextEditingController qtyController = TextEditingController(
       text: currentQty.toString(),
     );
 
+    qtyController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: qtyController.text.length,
+    );
+
     final newQty = await showDialog<int>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Edit Jumlah: ${item['nama_menu']}"),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Ubah Jumlah",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "${item['nama_menu']}",
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+          ],
+        ),
         content: TextField(
           controller: qtyController,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: "Kuantitas"),
+          autofocus: true, 
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          decoration: InputDecoration(
+            hintText: "0",
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            filled: true,
+            fillColor: Colors.grey[50],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[200]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[200]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF0D47A1), width: 2),
+            ),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Batal"),
+            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            onPressed: () =>
-                Navigator.pop(context, int.tryParse(qtyController.text)),
+            onPressed: () {
+              final val = int.tryParse(qtyController.text);
+              if (val != null && val >= 0) {
+                Navigator.pop(context, val);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0D47A1),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
             child: const Text("Simpan"),
           ),
         ],
       ),
     );
 
-    if (newQty != null && newQty > 0 && newQty != currentQty) {
-      final db = await AppDatabase.database;
-      int hargaSatuan = item['subtotal'] ~/ currentQty;
-      int newSubtotal = hargaSatuan * newQty;
+    if (newQty != null && newQty != currentQty) {
+      if (newQty == 0) {
+        await _deleteItem(item['id']);
+      } else {
+        final db = await AppDatabase.database;
+        int hargaSatuan = item['harga_saat_ini'];
+        int newSubtotal = hargaSatuan * newQty;
 
-      await db.transaction((txn) async {
-        // 1. Update baris detail
-        await txn.update(
+        await db.update(
           'transaksi_detail',
           {'qty': newQty, 'subtotal': newSubtotal},
           where: 'id = ?',
           whereArgs: [item['id']],
         );
-
-        // 2. Hitung ulang total untuk header transaksi
-        final result = await txn.rawQuery(
-          'SELECT SUM(subtotal) as total FROM transaksi_detail WHERE transaksi_id = ?',
-          [_selectedId],
-        );
-        int totalBaru = result.first['total'] as int;
-
-        await txn.update(
-          'transaksi',
-          {'total_harga': totalBaru},
-          where: 'id = ?',
-          whereArgs: [_selectedId],
-        );
-      });
-
-      _loadTransaksi(); // Refresh list kiri
-      _loadDetail(_selectedId!); // Refresh detail kanan
+        await _updateTotalTransaksi();
+      }
     }
   }
 
@@ -128,61 +339,17 @@ class _TransaksiPageState extends State<TransaksiPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                shape: BoxShape.circle,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.delete_forever, color: Colors.red),
-            ),
-            const SizedBox(width: 16),
-            const Text(
-              "Hapus Transaksi",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
-          "Tindakan ini tidak dapat dibatalkan. Seluruh riwayat transaksi ini akan dihapus secara permanen dari sistem.",
-          style: TextStyle(color: Color(0xFF64748B), height: 1.5),
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(0, 0, 16, 16),
+        title: const Text("Hapus Seluruh Transaksi?"),
+        content: const Text("Riwayat transaksi ini akan hilang selamanya."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF64748B),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            child: const Text(
-              "Batal",
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
+            child: const Text("Batal"),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text(
-              "Ya, Hapus",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            child: const Text("Hapus"),
           ),
         ],
       ),
@@ -196,7 +363,6 @@ class _TransaksiPageState extends State<TransaksiPage> {
         where: 'transaksi_id = ?',
         whereArgs: [id],
       );
-
       setState(() {
         _selectedId = null;
         _selectedDetails = [];
@@ -265,47 +431,18 @@ class _TransaksiPageState extends State<TransaksiPage> {
                     borderRadius: BorderRadius.circular(12),
                     side: BorderSide(
                       color: isSelected ? Colors.blue : Colors.transparent,
-                      width: 1,
                     ),
                   ),
-
                   child: ListTile(
                     onTap: () => _loadDetail(trx['id']),
                     title: Text(
                       "Trx #${trx['id']}",
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    subtitle: Column(
-                      // Ubah ke Column agar bisa menampung 2 baris teks
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          DateFormat(
-                            'dd MMM yyyy, HH:mm',
-                          ).format(DateTime.parse(trx['tanggal'])),
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        const SizedBox(height: 4),
-                        // Menampilkan Label Metode Pembayaran
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            trx['metode_pembayaran'] ??
-                                'Cash', // Default 'Cash' jika null
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
+                    subtitle: Text(
+                      DateFormat(
+                        'dd MMM, HH:mm',
+                      ).format(DateTime.parse(trx['tanggal'])),
                     ),
                     trailing: Text(
                       currencyFormat.format(trx['total_harga']),
@@ -329,7 +466,9 @@ class _TransaksiPageState extends State<TransaksiPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: _selectedId == null ? _buildEmptyState() : _buildDetailContent(),
+        child: _selectedId == null
+            ? const Center(child: Text("Pilih transaksi"))
+            : _buildDetailContent(),
       ),
     );
   }
@@ -346,16 +485,30 @@ class _TransaksiPageState extends State<TransaksiPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                "STRUK DIGITAL",
+                "DETAIL TRANSAKSI",
                 style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2,
+                  fontWeight: FontWeight.bold,
                   color: Colors.grey,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                onPressed: () => _deleteTransaksi(_selectedId!),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: _reprint,
+                    icon: const Icon(Icons.print, color: Colors.blue),
+                  ),
+                  IconButton(
+                    onPressed: _addMenuToTransaksi,
+                    icon: const Icon(
+                      Icons.add_circle_outline,
+                      color: Colors.green,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _deleteTransaksi(_selectedId!),
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  ),
+                ],
               ),
             ],
           ),
@@ -370,50 +523,47 @@ class _TransaksiPageState extends State<TransaksiPage> {
                   leading: ActionChip(
                     label: Text("${item['qty']}x"),
                     onPressed: () => _editQty(item),
-                    avatar: const Icon(Icons.edit, size: 14),
                   ),
                   title: Text("${item['nama_menu']}"),
-                  trailing: Text(currencyFormat.format(item['subtotal'])),
+                  subtitle: Text(currencyFormat.format(item['harga_saat_ini'])),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        currencyFormat.format(item['subtotal']),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.remove_circle_outline,
+                          size: 20,
+                          color: Colors.red,
+                        ),
+                        onPressed: () => _deleteItem(item['id']),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
           ),
           const Divider(thickness: 2),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "TOTAL",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "TOTAL",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              Text(
+                currencyFormat.format(selectedTrx['total_harga']),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
                 ),
-                Text(
-                  currencyFormat.format(selectedTrx['total_harga']),
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.blue,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.receipt_long, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            "Pilih transaksi untuk dikelola",
-            style: TextStyle(color: Colors.grey),
+              ),
+            ],
           ),
         ],
       ),

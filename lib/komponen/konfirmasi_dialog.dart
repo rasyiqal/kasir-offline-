@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:kasir/komponen/nota_thermal.dart';
+import 'package:kasir/print/nota_thermal.dart';
+import 'package:kasir/print/print_manager.dart'; 
 
 class CheckoutDialog extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -30,21 +31,26 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
     try {
       if (_savedId == null) {
         _savedId = await widget.onConfirm();
-        if (mounted) Navigator.pop(context);
-      } else {
-        await NotaService_thermal.cetakNota(
-          items: widget.cartItems,
-          total: widget.totalPrice,
-          transactionId: _savedId!,
-          metodeBayar: widget.paymentMethod,
-        );
-        if (mounted) Navigator.pop(context);
       }
+
+      if (PrinterManager().selectedPrinter == null) {
+        throw "Printer belum dipilih. Silakan atur printer di menu Pengaturan.";
+      }
+
+      await NotaService_thermal.cetakNota(
+        items: widget.cartItems,
+        total: widget.totalPrice,
+        transactionId: _savedId!,
+        metodeBayar: widget.paymentMethod,
+      );
+
+      if (mounted) Navigator.pop(context);
+      
     } catch (e) {
       setState(() => _isLoading = false);
-      if (e is Map && e.containsKey('id')) {
-        _savedId = e['id'];
-        _showErrorDialog("Transaksi Tersimpan, tapi Printer Error: ${e['error']}");
+      
+      if (_savedId != null) {
+        _showErrorDialog("Transaksi Berhasil Disimpan (#$_savedId), tetapi gagal mencetak: $e");
       } else {
         _showErrorDialog(e.toString());
       }
@@ -62,12 +68,15 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
           children: [
             Icon(Icons.warning_rounded, color: Colors.orange),
             SizedBox(width: 8),
-            Text("Masalah Printer", style: TextStyle(fontWeight: FontWeight.bold)),
+            Text("Peringatan", style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
         content: Text(msg),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK"))
+          TextButton(
+            onPressed: () => Navigator.pop(ctx), 
+            child: const Text("Tutup")
+          )
         ],
       ),
     );
@@ -79,7 +88,7 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
 
     return Dialog(
       backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white, // Mencegah warna tint di Material 3
+      surfaceTintColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -106,6 +115,30 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
               ],
             ),
             const SizedBox(height: 20),
+
+            // --- INFO STATUS PRINTER (NEW) ---
+            if (PrinterManager().selectedPrinter == null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red[100]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.print_disabled, size: 16, color: Colors.red[900]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "Printer belum terhubung",
+                        style: TextStyle(color: Colors.red[900], fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             // --- METODE BAYAR ---
             Container(
@@ -192,7 +225,7 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
                   border: Border.all(color: Colors.orange[100]!),
                 ),
                 child: Text(
-                  "Transaksi sudah tersimpan di sistem dengan ID #$_savedId. Silakan coba cetak ulang nota.",
+                  "Transaksi sudah tersimpan (ID #$_savedId). Silakan pastikan printer menyala dan klik cetak ulang.",
                   style: TextStyle(color: Colors.orange[900], fontSize: 12, height: 1.4),
                 ),
               ),
