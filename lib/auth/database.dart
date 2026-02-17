@@ -16,7 +16,7 @@ class AppDatabase {
     final path = join(dbPath, 'kasir.db');
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE kategori (
@@ -49,26 +49,53 @@ class AppDatabase {
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         });
+
+        // tabel transaksi
+        await db.execute('''
+          CREATE TABLE transaksi (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tanggal TEXT NOT NULL,
+            total_harga INTEGER NOT NULL,
+            metode_pembayaran TEXT NOT NULL
+          )
+        ''');
+
+        await db.execute('''
+        CREATE TABLE transaksi_detail (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          transaksi_id INTEGER NOT NULL,
+          menu_id INTEGER NOT NULL,
+          nama_menu TEXT NOT NULL,
+          harga_saat_ini INTEGER NOT NULL,
+          qty INTEGER NOT NULL,
+          subtotal INTEGER NOT NULL,
+          FOREIGN KEY (transaksi_id) REFERENCES transaksi (id) ON DELETE CASCADE
+        )
+      ''');
       },
-      // KITA TAMBAHKAN onOpen UNTUK SEEDING KATEGORI
+
       onOpen: (db) async {
         await _seedData(db);
       },
+
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
+        if (oldVersion < 4) {
+          await db.execute('ALTER TABLE transaksi ADD COLUMN metode_pembayaran TEXT NOT NULL DEFAULT "Cash"');
+          // await db.execute(
+          //   'CREATE TABLE transaksi (id INTEGER PRIMARY KEY AUTOINCREMENT, tanggal TEXT NOT NULL, total_harga INTEGER NOT NULL)',
+          // );
           await db.execute('''
-            CREATE TABLE pin (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              pin TEXT NOT NULL,
-              created_at TEXT NOT NULL,
-              updated_at TEXT NOT NULL
-            );
-          ''');
-          await db.insert('pin', {
-            'pin': '123456',
-            'created_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          });
+          CREATE TABLE transaksi_detail (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transaksi_id INTEGER NOT NULL,
+            menu_id INTEGER NOT NULL,
+            nama_menu TEXT NOT NULL,
+            harga_saat_ini INTEGER NOT NULL,
+            qty INTEGER NOT NULL,
+            subtotal INTEGER NOT NULL,
+            FOREIGN KEY (transaksi_id) REFERENCES transaksi (id) ON DELETE CASCADE
+          )
+        ''');
         }
       },
     );
@@ -76,7 +103,6 @@ class AppDatabase {
 
   // FUNGSI SEED DATA TERPISAH
   static Future<void> _seedData(Database db) async {
-    // Cek apakah tabel kategori kosong
     final List<Map<String, dynamic>> kategori = await db.query('kategori');
 
     if (kategori.isEmpty) {
@@ -223,5 +249,58 @@ class AppDatabase {
       'created_at': DateTime.now().toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
     });
+  }
+
+  static Future<int> simpanTransaksi(
+    List<Map<String, dynamic>> cartItems,
+    int total,
+    String metode,
+  ) async {
+    final db = await database;
+
+    return await db.transaction((txn) async {
+      int transaksiId = await txn.insert('transaksi', {
+        'tanggal': DateTime.now().toIso8601String(),
+        'total_harga': total,
+        'metode_pembayaran': metode,
+      });
+
+      for (var item in cartItems) {
+        await txn.insert('transaksi_detail', {
+          'transaksi_id': transaksiId,
+          'menu_id': item['menu_id'],
+          'nama_menu': item['nama'],
+          'harga_saat_ini': item['harga'],
+          'qty': item['qty'],
+          'subtotal': (item['harga'] as int) * (item['qty'] as int),
+        });
+      }
+
+      return transaksiId;
+    });
+  }
+
+  // laporan
+  static Future<List<Map<String, dynamic>>> getRiwayatTransaksi() async {
+    final db = await database;
+    return await db.query('transaksi', orderBy: 'tanggal DESC');
+  }
+
+  static Future<List<Map<String, dynamic>>> getRingkasanPendapatan({int days = 3}) async {
+    final db = await database;
+    final dateLimit = DateTime.now().subtract(Duration(days: days - 1));
+    final dateString = DateTime(dateLimit.year, dateLimit.month, dateLimit.day).toIso8601String();
+
+    return await db.rawQuery('''
+      SELECT 
+        date(tanggal) as hari, 
+        metode_pembayaran,
+        SUM(total_harga) as total_harian,
+        COUNT(id) as jumlah_transaksi
+      FROM transaksi 
+      WHERE tanggal >= ?
+      GROUP BY hari, metode_pembayaran
+      ORDER BY hari DESC, metode_pembayaran ASC
+    ''', [dateString]);
   }
 }

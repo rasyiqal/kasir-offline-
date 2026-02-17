@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // Tambahkan intl di pubspec.yaml untuk tanggal
+import 'package:intl/intl.dart';
 import 'package:kasir/auth/cekDataKosong.dart';
 import 'package:kasir/auth/login.dart';
+import 'package:kasir/komponen/konfirmasi_dialog.dart';
 import 'package:kasir/komponen/menu_card.dart';
 import 'package:kasir/komponen/cart.dart';
 import 'package:kasir/auth/database.dart';
-import 'package:kasir/komponen/nota.dart';
-import 'package:kasir/komponen/note_thermal.dart';
+import 'package:kasir/komponen/nota_thermal.dart';
 
 class KasirPage extends StatefulWidget {
   const KasirPage({super.key});
@@ -134,6 +134,7 @@ class _KasirPageState extends State<KasirPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: bgWhite,
       body: SafeArea(
         child: Column(
@@ -300,31 +301,42 @@ class _KasirPageState extends State<KasirPage> {
                     bgWhite: bgWhite,
                     cartItems: _cartItems,
                     totalPrice: _getTotalPrice(),
-                    onCheckout: () async {
+                    // Cari bagian onCheckout: (String metode) di kasir.dart
+                    onCheckout: (String metode) async {
                       if (_cartItems.isEmpty) return;
 
-                      // Tampilkan loading jika perlu
-                      try {
-                        await NotaService_thermal.cetakNota(
-                          items: _cartItems,
-                          total: _getTotalPrice(),
-                        );
+                      showDialog(
+                        context: context,
+                        builder: (dialogContext) => CheckoutDialog(
+                          paymentMethod: metode,
+                          cartItems: List.from(_cartItems),
+                          totalPrice: _getTotalPrice(),
+                          // PERBAIKAN: Fungsi sekarang mengembalikan Future<int>
+                          onConfirm: () async {
+                            // 1. Simpan ke Database dulu
+                            int transaksiId = await AppDatabase.simpanTransaksi(
+                              List.from(_cartItems),
+                              _getTotalPrice(),
+                              metode,
+                            );
 
-                        setState(() => _cartItems.clear());
-                        // ScaffoldMessenger.of(context).showSnackBar(
-                        //   const SnackBar(
-                        //     content: Text('Nota berhasil dicetak!'),
-                        //     backgroundColor: Colors.green,
-                        //   ),
-                        // );
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Gagal cetak: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
+                            // 2. Coba cetak
+                            try {
+                              await NotaService_thermal.cetakNota(
+                                items: List.from(_cartItems),
+                                total: _getTotalPrice(),
+                                transactionId: transaksiId,
+                                metodeBayar: metode,
+                              );
+                              setState(() => _cartItems.clear());
+                            } catch (e) {
+                              throw {'id': transaksiId, 'error': e.toString()};
+                            }
+
+                            return transaksiId; 
+                          },
+                        ),
+                      );
                     },
                     onRemoveItem: (index) =>
                         setState(() => _cartItems.removeAt(index)),

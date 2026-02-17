@@ -3,8 +3,12 @@ import 'package:kasir/pages/dashboard.dart';
 import 'package:kasir/pages/kasir.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
+import 'package:intl/date_symbol_data_local.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('id_ID', null);
+
   runApp(const MyApp());
 }
 
@@ -39,6 +43,7 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       title: 'Kasir App',
       theme: ThemeData(primarySwatch: Colors.blue),
+      locale: const Locale('id', 'ID'),
       initialRoute: '/kasir',
       routes: {
         '/kasir': (context) => const KasirPage(),
