@@ -44,6 +44,7 @@ dependencies:
   permission_handler: ^12.0.1
   flutter_thermal_printer: ^1.2.4
   esc_pos_utils_plus: ^2.0.4
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -97,3 +98,14 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+flutter_launcher_icons:
+  image_path: "assets/icon_app.png"
+
+  android: true
+  min_sdk_android: 21 
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/icon_app.png"
+
+  ios: true
+  remove_alpha_channel_ios: true
+  remove_alpha_ios: true

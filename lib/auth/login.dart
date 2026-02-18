@@ -81,12 +81,12 @@ class _LoginPopupState extends State<LoginPopup> {
         child: Container(
           constraints: const BoxConstraints(
             maxWidth: 360,
-          ), // Samakan lebar dengan Reset PIN
+          ), 
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header Samakan Style dengan Reset PIN
+              
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -191,7 +191,7 @@ class _LoginPopupState extends State<LoginPopup> {
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: Color(0xFF0D47A1),
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(

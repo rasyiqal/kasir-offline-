@@ -223,6 +223,8 @@ class _TransaksiPageState extends State<TransaksiPage> {
       total: trx['total_harga'],
       metodeBayar: trx['metode_pembayaran'] ?? 'Cash',
       transactionId: _selectedId,
+      bayar: trx['bayar'] ?? trx['total_harga'],
+      kembalian: (trx['bayar'] ?? trx['total_harga']) - trx['total_harga'],
     );
   }
 

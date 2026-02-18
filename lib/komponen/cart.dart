@@ -10,7 +10,9 @@ class Cart extends StatefulWidget {
   final int totalPrice;
   final Function(int)? onRemoveItem;
   final Function(int, int)? onUpdateQuantity;
-  final Function(String)? onCheckout;
+
+  // PERBAIKAN: Callback sekarang mengirim 3 parameter
+  final Function(String method, int cashAmount, int change)? onCheckout;
 
   const Cart({
     super.key,
@@ -32,6 +34,20 @@ class Cart extends StatefulWidget {
 
 class _CartState extends State<Cart> {
   String selectedMethod = 'Cash';
+  final TextEditingController _cashController = TextEditingController();
+
+  @override
+  void dispose() {
+    _cashController.dispose();
+    super.dispose();
+  }
+
+  int get _inputCash {
+    return int.tryParse(
+          _cashController.text.replaceAll(RegExp(r'[^0-9]'), ''),
+        ) ??
+        0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,8 +114,6 @@ class _CartState extends State<Cart> {
           ),
         ),
         const Divider(height: 1),
-
-        // Bagian list tetap Expanded
         Expanded(
           child: widget.cartItems.isEmpty
               ? _buildEmptyState()
@@ -115,11 +129,9 @@ class _CartState extends State<Cart> {
             color: Colors.white,
             border: Border(top: BorderSide(color: Colors.grey.shade200)),
           ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [_buildPaymentSection(), _buildFooter()],
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [_buildPaymentSection(), _buildFooter()],
           ),
         ),
       ],
@@ -147,7 +159,10 @@ class _CartState extends State<Cart> {
               bool isSelected = selectedMethod == method;
               return Expanded(
                 child: GestureDetector(
-                  onTap: () => setState(() => selectedMethod = method),
+                  onTap: () => setState(() {
+                    selectedMethod = method;
+                    if (method != 'Cash') _cashController.clear();
+                  }),
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 2),
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -176,17 +191,94 @@ class _CartState extends State<Cart> {
               );
             }).toList(),
           ),
+          if (selectedMethod == 'Cash') ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _cashController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(
+                fontSize: 16, // Sedikit diperbesar agar nyaman di mata kasir
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+              decoration: InputDecoration(
+                // Menghapus labelText sesuai permintaan
+                hintText: 'Masukkan nominal bayar',
+                hintStyle: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 14,
+                  fontWeight: FontWeight.normal,
+                ),
+                prefixIcon: const Icon(
+                  Icons.payments_outlined,
+                  size: 20,
+                  color: Colors.blueGrey,
+                ),
+                prefixText: 'Rp ',
+                prefixStyle: const TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+
+                // UI Border yang lebih modern (outline tipis)
+                filled: true,
+                fillColor: Colors.grey[50],
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF0D47A1),
+                    width: 1.5,
+                  ),
+                ),
+              ),
+              onChanged: (value) => setState(() {}),
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildFooter() {
+    // Logika Perhitungan
+    int bayar = selectedMethod == 'Cash' ? _inputCash : widget.totalPrice;
+    int kembalian = bayar - widget.totalPrice;
+    bool isUangCukup = bayar >= widget.totalPrice;
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (selectedMethod == 'Cash' && _inputCash > 0) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Kembalian', style: TextStyle(fontSize: 12)),
+                Text(
+                  'Rp${_formatRupiah(kembalian < 0 ? 0 : kembalian)}',
+                  style: TextStyle(
+                    color: kembalian < 0 ? Colors.red : Colors.green,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -206,9 +298,16 @@ class _CartState extends State<Cart> {
           ),
           const SizedBox(height: 12),
           ElevatedButton(
-            onPressed: widget.cartItems.isEmpty
+            // Tombol mati jika keranjang kosong atau uang cash kurang
+            onPressed: widget.cartItems.isEmpty || !isUangCukup
                 ? null
-                : () => widget.onCheckout?.call(selectedMethod),
+                : () {
+                    widget.onCheckout?.call(
+                      selectedMethod,
+                      bayar,
+                      kembalian < 0 ? 0 : kembalian,
+                    );
+                  },
             style: ElevatedButton.styleFrom(
               backgroundColor: widget.primaryBlue,
               foregroundColor: Colors.white,

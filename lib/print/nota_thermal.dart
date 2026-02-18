@@ -16,6 +16,8 @@ class NotaService_thermal {
     required int total,
     required String metodeBayar,
     int? transactionId,
+    required int bayar, 
+    required int kembalian,
   }) async {
     final printerPlugin = FlutterThermalPrinter.instance;
     final savedPrinter = PrinterManager().selectedPrinter;
@@ -121,6 +123,26 @@ class NotaService_thermal {
         text: "Rp ${formatCurrency(total)}",
         width: 6,
         styles: const PosStyles(align: PosAlign.right, bold: true),
+      ),
+    ]);
+
+    // --- BAYAR & KEMBALIAN ---
+
+    bytes += generator.row([
+      PosColumn(text: "BAYAR", width: 6),
+      PosColumn(
+        text: "Rp ${formatCurrency(bayar)}",
+        width: 6,
+        styles: const PosStyles(align: PosAlign.right),
+      ),
+    ]);
+
+    bytes += generator.row([
+      PosColumn(text: "KEMBALIAN", width: 6),
+      PosColumn(
+        text: "Rp ${formatCurrency(kembalian)}",
+        width: 6,
+        styles: const PosStyles(align: PosAlign.right),
       ),
     ]);
 

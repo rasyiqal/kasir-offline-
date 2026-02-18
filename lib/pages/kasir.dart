@@ -30,6 +30,7 @@ class _KasirPageState extends State<KasirPage> {
   bool _loadingKategori = true;
   bool _loadingMenu = true;
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _cashController = TextEditingController();
 
   final Color primaryBlue = const Color(0xFF0D47A1);
   final Color accentBlue = const Color(0xFFE3F2FD);
@@ -332,7 +333,7 @@ class _KasirPageState extends State<KasirPage> {
                                     gridDelegate:
                                         const SliverGridDelegateWithMaxCrossAxisExtent(
                                           maxCrossAxisExtent: 180,
-                                          childAspectRatio: 0.75,
+                                          childAspectRatio: 0.7,
                                           crossAxisSpacing: 16,
                                           mainAxisSpacing: 16,
                                         ),
@@ -359,43 +360,58 @@ class _KasirPageState extends State<KasirPage> {
                     bgWhite: bgWhite,
                     cartItems: _cartItems,
                     totalPrice: _getTotalPrice(),
-                    // Cari bagian onCheckout: (String metode) di kasir.dart
-                    onCheckout: (String metode) async {
-                      if (_cartItems.isEmpty) return;
 
-                      showDialog(
-                        context: context,
-                        builder: (dialogContext) => CheckoutDialog(
-                          paymentMethod: metode,
-                          cartItems: List.from(_cartItems),
-                          totalPrice: _getTotalPrice(),
-                          // PERBAIKAN: Fungsi sekarang mengembalikan Future<int>
-                          onConfirm: () async {
-                            // 1. Simpan ke Database dulu
-                            int transaksiId = await AppDatabase.simpanTransaksi(
-                              List.from(_cartItems),
-                              _getTotalPrice(),
-                              metode,
-                            );
+                    onCheckout:
+                        (String metode, int nominalBayar, int kembalian) async {
+                          if (_cartItems.isEmpty) return;
 
-                            // 2. Coba cetak
-                            try {
-                              await NotaService_thermal.cetakNota(
-                                items: List.from(_cartItems),
-                                total: _getTotalPrice(),
-                                transactionId: transaksiId,
-                                metodeBayar: metode,
-                              );
-                              setState(() => _cartItems.clear());
-                            } catch (e) {
-                              throw {'id': transaksiId, 'error': e.toString()};
-                            }
+                          showDialog(
+                            context: context,
+                            builder: (dialogContext) => CheckoutDialog(
+                              paymentMethod: metode,
+                              cartItems: List.from(_cartItems),
+                              totalPrice: _getTotalPrice(),
+                              nominalBayar:
+                                  nominalBayar, 
+                              onConfirm: () async {
+                                int transaksiId =
+                                    await AppDatabase.simpanTransaksi(
+                                      List.from(_cartItems),
+                                      _getTotalPrice(),
+                                      metode,
+                                    );
 
-                            return transaksiId;
-                          },
-                        ),
-                      );
-                    },
+                                // Cetak ke Thermal
+                                try {
+                                  await NotaService_thermal.cetakNota(
+                                    items: List.from(_cartItems),
+                                    total: _getTotalPrice(),
+                                    transactionId: transaksiId,
+                                    metodeBayar: metode,
+                                    bayar:
+                                        nominalBayar,
+                                    kembalian:
+                                        kembalian,
+                                  );
+
+                                  setState(() {
+                                    _cartItems.clear();
+                                    _cashController.clear();
+                                  });
+                                } catch (e) {
+                                  // Jika cetak gagal, transaksi tetap tersimpan tapi lempar error
+                                  throw {
+                                    'id': transaksiId,
+                                    'error': e.toString(),
+                                  };
+                                }
+
+                                return transaksiId;
+                              },
+                            ),
+                          );
+                        },
+
                     onRemoveItem: (index) =>
                         setState(() => _cartItems.removeAt(index)),
                     onUpdateQuantity: (index, newQty) {
