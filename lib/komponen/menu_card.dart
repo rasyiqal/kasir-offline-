@@ -42,9 +42,8 @@ class MenuCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Gambar dengan AspectRatio tetap
                 AspectRatio(
-                  aspectRatio: 1.3, // Sedikit lebih ramping untuk hemat ruang
+                  aspectRatio: 1.2,
                   child: Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
@@ -54,40 +53,42 @@ class MenuCard extends StatelessWidget {
                   ),
                 ),
 
-                // 2. Konten Teks menggunakan Expanded agar fleksibel
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween, // Dorong harga ke bawah
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         // Nama Produk
                         Text(
                           nama,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 12, // Perkecil sedikit dari 13 ke 12
+                            fontSize: 12,
                             color: Color(0xFF2D3142),
                             height: 1.1,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        
+
                         // Harga dan Tombol Tambah
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Expanded( // Gunakan Expanded agar harga tidak overflow jika terlalu panjang
+                              Expanded(
                                 child: Text(
-                                  'Rp${_formatRupiah(harga)}',
+                                  'Rp ${_formatRupiah(harga)}',
                                   style: TextStyle(
                                     color: primaryBlue,
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 12, // Perkecil sedikit
+                                    fontSize: 12,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -120,32 +121,32 @@ class MenuCard extends StatelessWidget {
     );
   }
 
- Widget _buildImage(String? gambar) {
-  if (gambar == null || gambar.isEmpty) {
+  Widget _buildImage(String? gambar) {
+    if (gambar == null || gambar.isEmpty) {
+      return _buildPlaceholder();
+    }
+
+    final file = File(gambar);
+    if (file.existsSync()) {
+      return Image.file(
+        file,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+      );
+    }
+
     return _buildPlaceholder();
   }
 
-  final file = File(gambar);
-  if (file.existsSync()) {
-    return Image.file(
-      file,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+  Widget _buildPlaceholder() {
+    return Center(
+      child: Icon(
+        Icons.fastfood_rounded,
+        color: primaryBlue.withOpacity(0.2),
+        size: 40,
+      ),
     );
   }
-
-  return _buildPlaceholder();
-}
-
-Widget _buildPlaceholder() {
-  return Center(
-    child: Icon(
-      Icons.fastfood_rounded,
-      color: primaryBlue.withOpacity(0.2),
-      size: 40,
-    ),
-  );
-}
 
   String _formatRupiah(dynamic value) {
     if (value == null) return '0';

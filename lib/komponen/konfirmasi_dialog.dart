@@ -54,25 +54,58 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
     } catch (e) {
       setState(() => _isLoading = false);
 
+      String errorString = e.toString();
+      String cleanMessage = "Terjadi kesalahan sistem.";
+
+      if (errorString.contains("Printer belum dipilih")) {
+        cleanMessage =
+            "Printer belum dipilih. Silakan atur di menu Pengaturan.";
+      } else if (_savedId != null) {
+        cleanMessage = "Nota gagal dicetak. Periksa koneksi printer Anda.";
+      } else {
+        cleanMessage = "Gagal menyimpan transaksi. Silakan coba lagi.";
+      }
+
       if (_savedId != null) {
         _showErrorDialog(
-          "Transaksi Berhasil (#$_savedId), gagal cetak: $e",
+          title: "Transaksi Berhasil",
+          msg: cleanMessage,
+          isWarning: true,
         );
       } else {
-        _showErrorDialog(e.toString());
+        _showErrorDialog(title: "Kesalahan", msg: cleanMessage);
       }
     }
   }
 
-  void _showErrorDialog(String msg) {
+  void _showErrorDialog({
+    required String title,
+    required String msg,
+    bool isWarning = false,
+  }) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Peringatan"),
+        title: Row(
+          children: [
+            Icon(
+              isWarning ? Icons.check_circle : Icons.error_outline,
+              color: isWarning ? Colors.orange : Colors.red,
+            ),
+            const SizedBox(width: 10),
+            Text(title),
+          ],
+        ),
         content: Text(msg),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Tutup")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              "Tutup",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
         ],
       ),
     );
@@ -81,7 +114,9 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(
-      locale: 'id_ID', symbol: 'Rp', decimalDigits: 0,
+      locale: 'id_ID',
+      symbol: 'Rp',
+      decimalDigits: 0,
     );
 
     return Dialog(
@@ -100,7 +135,10 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
               children: [
                 CircleAvatar(
                   backgroundColor: const Color(0xFFE3F2FD),
-                  child: Icon(Icons.shopping_basket_outlined, color: Colors.blue[900]),
+                  child: Icon(
+                    Icons.shopping_basket_outlined,
+                    color: Colors.blue[900],
+                  ),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -109,18 +147,26 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
                 ),
               ],
             ),
-            const SizedBox(height: 16), 
+            const SizedBox(height: 16),
 
             // --- LIST ITEM (TAMPILKAN ITEM DI SINI) ---
-            const Text("Item yang dibeli:", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+            const Text(
+              "Item yang dibeli:",
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
             Flexible(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 200), 
+                constraints: const BoxConstraints(maxHeight: 200),
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: widget.cartItems.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1, color: Color(0xFFEEEEEE)),
                   itemBuilder: (context, index) {
                     final item = widget.cartItems[index];
                     return Padding(
@@ -131,14 +177,30 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(item['nama'], style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-                                Text("${item['qty']} x ${currencyFormat.format(item['harga'])}", 
-                                     style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                                Text(
+                                  item['nama'],
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  "${item['qty']} x ${currencyFormat.format(item['harga'])}",
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
-                          Text(currencyFormat.format(item['qty'] * item['harga']), 
-                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text(
+                            currencyFormat.format(item['qty'] * item['harga']),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -146,7 +208,7 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
                 ),
               ),
             ),
-            
+
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Divider(thickness: 1, color: Colors.black12),
@@ -155,17 +217,24 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
             // --- RINGKASAN PEMBAYARAN ---
             _buildRowInfo("Metode", widget.paymentMethod.toUpperCase()),
             const SizedBox(height: 4),
-            _buildRowInfo("Total Tagihan", currencyFormat.format(widget.totalPrice), isBold: true),
-            
+            _buildRowInfo(
+              "Total Tagihan",
+              currencyFormat.format(widget.totalPrice),
+              isBold: true,
+            ),
+
             if (widget.paymentMethod == 'Cash') ...[
               const SizedBox(height: 4),
-              _buildRowInfo("Uang Bayar", currencyFormat.format(widget.nominalBayar)),
+              _buildRowInfo(
+                "Uang Bayar",
+                currencyFormat.format(widget.nominalBayar),
+              ),
               const SizedBox(height: 4),
               _buildRowInfo(
-                "Kembalian", 
+                "Kembalian",
                 currencyFormat.format(widget.nominalBayar - widget.totalPrice),
                 valueColor: Colors.green[700],
-                isBold: true
+                isBold: true,
               ),
             ],
 
@@ -189,11 +258,25 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
                       backgroundColor: const Color(0xFF0D47A1),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: _isLoading
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : Text(_savedId == null ? "KONFIRMASI & CETAK" : "CETAK ULANG"),
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            _savedId == null
+                                ? "KONFIRMASI & CETAK"
+                                : "CETAK ULANG",
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
               ],
@@ -204,11 +287,19 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
     );
   }
 
-  Widget _buildRowInfo(String label, String value, {bool isBold = false, Color? valueColor}) {
+  Widget _buildRowInfo(
+    String label,
+    String value, {
+    bool isBold = false,
+    Color? valueColor,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, color: Colors.black54),
+        ),
         Text(
           value,
           style: TextStyle(

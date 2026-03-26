@@ -8,7 +8,7 @@ import 'package:kasir/komponen/cart.dart';
 import 'package:kasir/auth/database.dart';
 import 'package:kasir/print/nota_thermal.dart';
 import 'package:kasir/print/print_manager.dart';
-import 'package:kasir/widget/print_option.dart';
+import 'package:kasir/print/print_option.dart';
 
 class KasirPage extends StatefulWidget {
   const KasirPage({super.key});
@@ -333,7 +333,7 @@ class _KasirPageState extends State<KasirPage> {
                                     gridDelegate:
                                         const SliverGridDelegateWithMaxCrossAxisExtent(
                                           maxCrossAxisExtent: 180,
-                                          childAspectRatio: 0.7,
+                                          childAspectRatio: 0.8,
                                           crossAxisSpacing: 16,
                                           mainAxisSpacing: 16,
                                         ),
@@ -371,8 +371,7 @@ class _KasirPageState extends State<KasirPage> {
                               paymentMethod: metode,
                               cartItems: List.from(_cartItems),
                               totalPrice: _getTotalPrice(),
-                              nominalBayar:
-                                  nominalBayar, 
+                              nominalBayar: nominalBayar,
                               onConfirm: () async {
                                 int transaksiId =
                                     await AppDatabase.simpanTransaksi(
@@ -388,10 +387,8 @@ class _KasirPageState extends State<KasirPage> {
                                     total: _getTotalPrice(),
                                     transactionId: transaksiId,
                                     metodeBayar: metode,
-                                    bayar:
-                                        nominalBayar,
-                                    kembalian:
-                                        kembalian,
+                                    bayar: nominalBayar,
+                                    kembalian: kembalian,
                                   );
 
                                   setState(() {

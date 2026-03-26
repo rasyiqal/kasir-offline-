@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kasir/komponen/formatcurrency.dart';
 
 class Cart extends StatefulWidget {
   final bool cartVisible;
@@ -11,7 +12,6 @@ class Cart extends StatefulWidget {
   final Function(int)? onRemoveItem;
   final Function(int, int)? onUpdateQuantity;
 
-  // PERBAIKAN: Callback sekarang mengirim 3 parameter
   final Function(String method, int cashAmount, int change)? onCheckout;
 
   const Cart({
@@ -162,6 +162,7 @@ class _CartState extends State<Cart> {
                   onTap: () => setState(() {
                     selectedMethod = method;
                     if (method != 'Cash') _cashController.clear();
+                    if (method == 'Cash') _showCashInputSheet();
                   }),
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 2),
@@ -193,57 +194,45 @@ class _CartState extends State<Cart> {
           ),
           if (selectedMethod == 'Cash') ...[
             const SizedBox(height: 12),
-            TextField(
-              controller: _cashController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(
-                fontSize: 16, // Sedikit diperbesar agar nyaman di mata kasir
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-              decoration: InputDecoration(
-                // Menghapus labelText sesuai permintaan
-                hintText: 'Masukkan nominal bayar',
-                hintStyle: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 14,
-                  fontWeight: FontWeight.normal,
-                ),
-                prefixIcon: const Icon(
-                  Icons.payments_outlined,
-                  size: 20,
-                  color: Colors.blueGrey,
-                ),
-                prefixText: 'Rp ',
-                prefixStyle: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-
-                // UI Border yang lebih modern (outline tipis)
-                filled: true,
-                fillColor: Colors.grey[50],
-                contentPadding: const EdgeInsets.symmetric(
+            InkWell(
+              onTap: _showCashInputSheet,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 14,
+                  vertical: 12,
                 ),
-                border: OutlineInputBorder(
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF0D47A1),
-                    width: 1.5,
+                  border: Border.all(
+                    color: widget.primaryBlue.withOpacity(0.3),
                   ),
                 ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Bayar Tunai:",
+                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                        ),
+                        Text(
+                          _cashController.text.isEmpty
+                              ? "Rp 0"
+                              : "Rp ${_cashController.text}",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Icon(Icons.edit_note, color: widget.primaryBlue),
+                  ],
+                ),
               ),
-              onChanged: (value) => setState(() {}),
             ),
           ],
         ],
@@ -324,6 +313,84 @@ class _CartState extends State<Cart> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showCashInputSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Agar sheet naik mengikuti keyboard
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(
+            context,
+          ).viewInsets.bottom, // Geser ke atas keyboard
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Input Pembayaran Cash",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _cashController,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                inputFormatters: [CurrencyInputFormatter()],
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                decoration: InputDecoration(
+                  hintText: '0',
+                  prefixText: 'Rp ',
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                onChanged: (value) => setState(() {}),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: widget.primaryBlue,
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  "SIMPAN NOMINAL",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

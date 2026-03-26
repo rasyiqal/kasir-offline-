@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:kasir/auth/database.dart';
+import 'package:kasir/komponen/formatcurrency.dart';
 
 class InputMenuDialog extends StatefulWidget {
   final Map<String, dynamic>? menuData;
@@ -26,21 +29,41 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
   final Color fieldBg = const Color(0xFFF8F9FA);
   final Color borderColor = const Color(0xFFEEEEEE);
 
+  late TextEditingController _namaController;
+  late TextEditingController _hargaController;
+
   @override
   void initState() {
     super.initState();
+    _namaController = TextEditingController(
+      text: widget.menuData?['nama'] ?? '',
+    );
+    _hargaController = TextEditingController(
+      text: widget.menuData?['harga'] != null
+          ? NumberFormat.decimalPattern('id').format(widget.menuData!['harga'])
+          : '',
+    );
+
+    namaMenu = widget.menuData?['nama'] ?? '';
+    hargaMenu = widget.menuData?['harga']?.toString() ?? '';
+
     if (widget.menuData != null) {
-      namaMenu = widget.menuData!['nama'] as String;
-      hargaMenu = widget.menuData!['harga'].toString();
       kategoriTerpilihId = widget.menuData!['kategori_id'] as int;
-      kategoriTerpilihNama = widget.menuData!['kategori_nama'] as String;
+      kategoriTerpilihNama = widget.menuData!['kategori_nama'] as String?;
+
       final gambarPath = widget.menuData!['gambar'] as String?;
       if (gambarPath != null && gambarPath.isNotEmpty) {
-        gambarMenu = XFile(gambarPath);
         gambarLama = gambarPath;
       }
     }
     _loadKategori();
+  }
+
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _hargaController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadKategori() async {
@@ -68,8 +91,13 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(widget.menuData == null ? 'Tambah Menu Baru' : 'Edit Menu',
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              Text(
+                widget.menuData == null ? 'Tambah Menu Baru' : 'Edit Menu',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 24),
               _buildLabel('Foto Menu'),
               GestureDetector(
@@ -82,18 +110,24 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: borderColor),
                   ),
-                  child: gambarMenu == null
+                  child: (gambarMenu == null && gambarLama == null)
                       ? Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.cloud_upload_outlined,
-                                color: primaryBlue, size: 36),
+                            Icon(
+                              Icons.cloud_upload_outlined,
+                              color: primaryBlue,
+                              size: 36,
+                            ),
                             const SizedBox(height: 8),
-                            Text('Klik untuk unggah foto menu',
-                                style: TextStyle(
-                                    fontSize: 13, color: Colors.grey[600])),
+                            Text(
+                              'Klik untuk unggah foto menu',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                              ),
+                            ),
                             const SizedBox(height: 8),
-                            // Tombol hapus hanya muncul jika gambarLama ada (edit mode)
                             if (gambarLama != null && gambarLama!.isNotEmpty)
                               TextButton.icon(
                                 onPressed: () {
@@ -102,8 +136,15 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                                     gambarLama = null;
                                   });
                                 },
-                                icon: const Icon(Icons.delete, color: Colors.red, size: 18),
-                                label: const Text('Hapus Foto', style: TextStyle(color: Colors.red)),
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                  size: 18,
+                                ),
+                                label: const Text(
+                                  'Hapus Foto',
+                                  style: TextStyle(color: Colors.red),
+                                ),
                               ),
                           ],
                         )
@@ -112,8 +153,15 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                           child: Stack(
                             children: [
                               Positioned.fill(
-                                child: Image.file(File(gambarMenu!.path),
-                                    fit: BoxFit.cover),
+                                child: gambarMenu != null
+                                    ? Image.file(
+                                        File(gambarMenu!.path),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Image.file(
+                                        File(gambarLama!),
+                                        fit: BoxFit.cover,
+                                      ),
                               ),
                               Positioned(
                                 right: 12,
@@ -124,8 +172,11 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                                     CircleAvatar(
                                       backgroundColor: Colors.black54,
                                       child: IconButton(
-                                        icon: const Icon(Icons.edit,
-                                            color: Colors.white, size: 20),
+                                        icon: const Icon(
+                                          Icons.edit,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
                                         onPressed: _pickImage,
                                       ),
                                     ),
@@ -133,8 +184,11 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                                     CircleAvatar(
                                       backgroundColor: Colors.black54,
                                       child: IconButton(
-                                        icon: const Icon(Icons.delete,
-                                            color: Colors.white, size: 20),
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
                                         onPressed: () {
                                           setState(() {
                                             gambarMenu = null;
@@ -156,6 +210,7 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
               _buildTextField(
                 hint: 'Contoh: Nasi Goreng Spesial',
                 onChanged: (v) => setState(() => namaMenu = v),
+                controller: _namaController,
               ),
               const SizedBox(height: 20),
               Row(
@@ -170,6 +225,11 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                           hint: '0',
                           keyboardType: TextInputType.number,
                           onChanged: (v) => setState(() => hargaMenu = v),
+                          controller: _hargaController,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            CurrencyInputFormatter(),
+                          ],
                         ),
                       ],
                     ),
@@ -179,10 +239,7 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                     flex: 3,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabel('Kategori'),
-                        _buildDropdown(),
-                      ],
+                      children: [_buildLabel('Kategori'), _buildDropdown()],
                     ),
                   ),
                 ],
@@ -196,51 +253,76 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: Text('Batal',
-                          style: TextStyle(
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w600)),
+                      child: Text(
+                        'Batal',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () async {
-                        if (namaMenu.trim().isEmpty ||
-                            hargaMenu.trim().isEmpty ||
+                        if (_namaController.text.trim().isEmpty ||
+                            _hargaController.text.trim().isEmpty ||
                             kategoriTerpilihId == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Harap lengkapi Nama, Harga, dan Kategori!',
+                              ),
+                              backgroundColor: Colors.redAccent,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
                           return;
                         }
-                        
+
                         try {
                           if (widget.menuData == null) {
                             // Insert menu baru
                             await AppDatabase.insertMenu(
-                              nama: namaMenu.trim(),
-                              harga: int.tryParse(hargaMenu.trim()) ?? 0,
-                              gambar: gambarMenu?.path,
+                              nama: _namaController.text.trim(),
+                              harga:
+                                  int.tryParse(
+                                    _hargaController.text.replaceAll('.', ''),
+                                  ) ??
+                                  0,
+                              gambar: gambarMenu?.path ?? gambarLama,
                               kategoriId: kategoriTerpilihId!,
                             );
                           } else {
-                            if (gambarMenu == null && gambarLama != null && gambarLama!.isNotEmpty) {
+                            if (gambarMenu == null &&
+                                gambarLama != null &&
+                                gambarLama!.isNotEmpty) {
                               await _deleteImageFile(gambarLama!);
                             }
-                            if (gambarMenu != null && gambarLama != null && gambarMenu!.path != gambarLama!) {
+                            if (gambarMenu != null &&
+                                gambarLama != null &&
+                                gambarMenu!.path != gambarLama!) {
                               await _deleteImageFile(gambarLama!);
                             }
                             await AppDatabase.updateMenu(
                               id: widget.menuData!['id'] as int,
-                              nama: namaMenu.trim(),
-                              harga: int.tryParse(hargaMenu.trim()) ?? 0,
-                              gambar: gambarMenu?.path,
+                              nama: _namaController.text.trim(),
+                              harga:
+                                  int.tryParse(
+                                    _hargaController.text.replaceAll('.', ''),
+                                  ) ??
+                                  0,
+                              gambar: gambarMenu?.path ?? gambarLama,
                               kategoriId: kategoriTerpilihId!,
                             );
                           }
                           Navigator.pop(context, true);
                         } catch (e) {
-                          print('Error saving menu: $e');
+                          // print('Error saving menu: $e');
                           Navigator.pop(context, false);
                         }
                       },
@@ -250,10 +332,15 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: Text(widget.menuData == null ? 'Simpan Menu' : 'Simpan Perubahan',
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      child: Text(
+                        widget.menuData == null
+                            ? 'Simpan Menu'
+                            : 'Simpan Perubahan',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ],
@@ -268,25 +355,34 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, left: 4),
-      child: Text(text,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+      child: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+      ),
     );
   }
 
-  Widget _buildTextField(
-      {required String hint,
-      required Function(String) onChanged,
-      TextInputType? keyboardType}) {
+  Widget _buildTextField({
+    required String hint,
+    required Function(String) onChanged,
+    TextInputType? keyboardType,
+    required TextEditingController controller,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
     return TextField(
+      controller: controller,
       onChanged: onChanged,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
         filled: true,
         fillColor: fieldBg,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: borderColor),
@@ -309,15 +405,21 @@ class _InputMenuDialogState extends State<InputMenuDialog> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
-          value: kategoriTerpilihId,
+          value: kategoriList.any((k) => k['id'] == kategoriTerpilihId)
+              ? kategoriTerpilihId
+              : null,
           isExpanded: true,
-          hint: Text('Pilih',
-              style: TextStyle(color: Colors.grey[400], fontSize: 14)),
+          hint: Text(
+            'Pilih',
+            style: TextStyle(color: Colors.grey[400], fontSize: 14),
+          ),
           items: kategoriList.map((k) {
             return DropdownMenuItem<int>(
               value: k['id'] as int,
-              child: Text(k['nama'] as String,
-                  style: const TextStyle(fontSize: 14)),
+              child: Text(
+                k['nama'] as String,
+                style: const TextStyle(fontSize: 14),
+              ),
             );
           }).toList(),
           onChanged: (v) {
